@@ -1,152 +1,129 @@
 import streamlit as st
 from openai import OpenAI
-import json
 
-# --- 1. SETUP ---
-st.set_page_config(page_title="GiftGenius", page_icon="🎁", layout="wide")
+# --- PAGE CONFIG ---
+st.set_page_config(
+    page_title="Veo/AI Ad-Prompt Generator",
+    page_icon="🎬",
+    layout="centered"
+)
 
-# --- 2. CSS DESIGN (Modern & Clean) ---
+# --- CSS STYLING ---
 st.markdown("""
-<style>
-    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
-    html, body, [class*="css"] { font-family: 'Poppins', sans-serif; }
-    
-    .gradient-text {
-        background: -webkit-linear-gradient(45deg, #FF512F, #DD2476);
-        -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-        font-weight: 600; font-size: 3rem; text-align: center; margin-bottom: 0;
+    <style>
+    .stButton>button {
+        width: 100%;
+        background-color: #10a37f; /* OpenAI Green */
+        color: white;
+        font-weight: bold;
+        border: none;
+        padding: 10px;
     }
-    .subtitle { text-align: center; color: #666; font-size: 1.1rem; margin-bottom: 3rem; }
-    
-    /* Karten-Design für 3 Spalten */
-    .gift-card {
-        background: white; 
-        border-radius: 20px; 
-        padding: 25px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.08); 
-        transition: all 0.3s ease;
-        border: 1px solid rgba(0,0,0,0.05); 
-        height: 100%;
-        display: flex; 
-        flex-direction: column; 
-        justify-content: space-between;
+    .stTextInput>div>div>input {
+        background-color: #f8f9fa;
     }
-    
-    .gift-card:hover { 
-        transform: translateY(-8px); 
-        box-shadow: 0 20px 40px rgba(0,0,0,0.12); 
-        border-color: #DD2476; 
-    }
-    
-    .card-title { color: #2D3436; font-size: 1.2rem; font-weight: 600; margin-bottom: 10px; }
-    .card-desc { color: #636e72; font-size: 0.95rem; line-height: 1.5; margin-bottom: 20px; }
-    
-    /* Der Kaufen-Button */
-    .buy-btn {
-        display: block; 
-        background: linear-gradient(90deg, #11998e 0%, #38ef7d 100%);
-        color: white !important; 
-        text-align: center; 
-        padding: 12px; 
-        border-radius: 12px;
-        text-decoration: none; 
-        font-weight: 500; 
-        box-shadow: 0 4px 15px rgba(17, 153, 142, 0.3);
-        transition: box-shadow 0.3s;
-    }
-    .buy-btn:hover { 
-        box-shadow: 0 6px 20px rgba(17, 153, 142, 0.5); 
-        opacity: 0.95; 
-    }
-</style>
-""", unsafe_allow_html=True)
+    </style>
+    """, unsafe_allow_html=True)
 
-# --- 3. SEITENLEISTE (Inputs) ---
+# --- SIDEBAR: API KEY ---
 with st.sidebar:
-    st.image("https://cdn-icons-png.flaticon.com/512/4213/4213958.png", width=70)
-    st.markdown("### Einstellungen")
-    
-    # Key automatisch laden
-    if "OPENAI_API_KEY" in st.secrets:
-        api_key = st.secrets["OPENAI_API_KEY"]
-        st.success("Bereit ✅", icon="🚀")
-    else:
-        st.error("API Key fehlt in Secrets!")
-        st.stop()
-    
+    st.header("🔑 Einstellung")
+    api_key = st.text_input("OpenAI API Key eingeben", type="password", help="Dein Key beginnt mit sk-...")
+    st.info("Der Key wird nur für diese Sitzung verwendet und nicht gespeichert.")
     st.markdown("---")
+    st.markdown("**Generiert für:**\n- Veo (Video)\n- Midjourney / Flux (Bild)")
+
+# --- MAIN CONTENT ---
+st.title("🎬 High-End Ad Campaign Prompter")
+st.markdown("Nutzt **ChatGPT**, um aus deinen Stichworten einen komplexen, photorealistischen Prompt zu schreiben.")
+st.divider()
+
+# --- INPUTS ---
+
+st.subheader("1. Das Model")
+col1, col2 = st.columns(2)
+with col1:
+    gender = st.selectbox("Geschlecht", ["Female Model", "Male Model", "Non-binary Model"])
+    age_range = st.select_slider("Alter", options=["20s", "30s", "40s", "50s", "60+"], value="30s")
+    hair_color = st.text_input("Haarfarbe", value="dark brown", placeholder="z.B. platinum blonde")
+
+with col2:
+    ethnicity = st.text_input("Ethnie / Hauttyp", value="olive skin tone", placeholder="z.B. scandinavian, east asian")
+    eye_color = st.text_input("Augenfarbe", value="hazel", placeholder="z.B. green")
+    freckles = st.radio("Haut-Details", ["Klare Haut (aber texturiert)", "Sommersprossen / Charakter"], horizontal=True)
+
+st.markdown("---")
+
+st.subheader("2. Ausschnitt & Kampagne")
+c1, c2 = st.columns(2)
+
+with c1:
+    # Framing Auswahl
+    frame_from = st.selectbox("Ausschnitt Start (Unten)", ["Chest", "Shoulders", "Neck", "Chin"])
+    frame_to = st.selectbox("Ausschnitt Ende (Oben)", ["Top of Head", "Hairline", "Forehead", "Eyes"])
     
-    relation = st.selectbox("Für wen?", ["Partner/in", "Eltern", "Bester Freund/in", "Kind", "Kollege", "Nachbar"])
-    age = st.slider("Alter", 1, 99, 28)
-    budget = st.select_slider("Budget", options=["Kleinigkeit", "20-50€", "50-100€", "Luxus (>100€)"])
-    interests = st.text_area("Hobbys & Vorlieben", height=120, placeholder="z.B. Mag Kaffee, Star Wars und Camping...")
-    
-    st.markdown("---")
-    start_search = st.button("✨ 3 Ideen finden", use_container_width=True, type="primary")
+with c2:
+    industry = st.selectbox("Branche", ["Skincare (Macro)", "Fashion (Editorial)", "Tech (Business)", "Automotive/Lifestyle"])
+    background = st.text_input("Hintergrund", value="blurred city lights at dusk", placeholder="Ortsbeschreibung")
 
+# --- GPT GENERATION FUNCTION ---
 
-# --- 4. HAUPTBEREICH ---
-st.markdown('<div class="gradient-text">GiftGenius AI</div>', unsafe_allow_html=True)
-st.markdown('<div class="subtitle">Finde 3 präzise Vorschläge in Sekunden.</div>', unsafe_allow_html=True)
+def get_chatgpt_prompt():
+    if not api_key:
+        st.error("⚠️ Bitte gib zuerst deinen OpenAI API Key in der Sidebar ein.")
+        return None
 
-if start_search and interests:
     client = OpenAI(api_key=api_key)
+
+    # Hier definieren wir die "Rolle" von ChatGPT
+    system_instruction = """
+    You are an expert AI Prompt Engineer specialized in creating prompts for Google Veo and Midjourney v6.
+    Your goal is to write prompts for HIGH-END ADVERTISING CAMPAIGNS.
     
-    with st.spinner('🔍 Die KI sucht nach konkreten Markenprodukten...'):
-        try:
-            # DER TRICK: Wir zwingen die KI zu "Specific Model Names"
-            prompt = f"""
-            Rolle: Shopping-Experte.
-            Zielperson: {relation}, {age} Jahre.
-            Budget: {budget}.
-            Interessen: {interests}.
-            
-            Aufgabe: Finde 3 KONKRETE Markenprodukte.
-            REGEL: Du darfst NICHT generisch sein (z.B. nicht "Eine Kaffeemaschine", sondern "De'Longhi Dedica EC685").
-            Das Ziel ist, dass der Suchbegriff bei Amazon genau dieses eine Produkt oben anzeigt.
-            
-            Format JSON: 
-            {{ "items": [ 
-                {{ 
-                    "title": "Exakter Produktname", 
-                    "text": "Kurze Begründung (max 2 Sätze)", 
-                    "search": "Marke + Modellnummer" 
-                }} 
-            ] }}
-            """
-            
-            response = client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.7
-            )
-            
-            data = json.loads(response.choices[0].message.content.replace("```json", "").replace("```", ""))
-            
-            st.markdown("<br>", unsafe_allow_html=True)
-            col1, col2, col3 = st.columns(3)
-            cols = [col1, col2, col3]
+    CRITICAL RULES FOR REALISM:
+    1. You MUST include these technical terms to ensure realistic skin: "subsurface scattering, micropore texture, visible skin pores, peach fuzz, vellus hair, unretouched raw photo".
+    2. Avoid "smooth" or "plastic" skin descriptions. 
+    3. Specify the camera gear based on the industry (e.g., Phase One XF IQ4 for fashion).
+    4. Write the output as a single, highly descriptive paragraph in English.
+    """
 
-            for i, item in enumerate(data["items"]):
-                # Link bauen (ohne Affiliate Tag, rein organisch)
-                search_query = item['search'].replace(' ', '+')
-                amazon_url = f"https://www.amazon.de/s?k={search_query}"
-                
-                with cols[i]:
-                    st.markdown(f"""
-                    <div class="gift-card">
-                        <div>
-                            <div class="card-title">{item['title']}</div>
-                            <div class="card-desc">{item['text']}</div>
-                        </div>
-                        <a href="{amazon_url}" target="_blank" class="buy-btn">
-                            Auf Amazon ansehen ➔
-                        </a>
-                    </div>
-                    """, unsafe_allow_html=True)
+    # Der Inhalt, den ChatGPT verarbeiten soll
+    user_content = f"""
+    Create a photorealistic prompt for a {gender} in their {age_range}.
+    Details: {hair_color} hair, {eye_color} eyes, {ethnicity}.
+    Skin features: {freckles}.
+    
+    FRAMING: The shot must be a close-up specifically from {frame_from} to {frame_to}.
+    CONTEXT: This is a {industry} campaign. Background: {background}.
+    
+    Make it look like a high-budget commercial production.
+    """
 
-        except Exception as e:
-            st.error(f"Fehler: {e}")
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o", # oder gpt-3.5-turbo, wenn du sparen willst
+            messages=[
+                {"role": "system", "content": system_instruction},
+                {"role": "user", "content": user_content}
+            ],
+            temperature=0.7 # Ein bisschen Kreativität zulassen
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        st.error(f"Ein Fehler ist aufgetreten: {e}")
+        return None
 
-elif start_search:
-    st.warning("Gib bitte ein paar Interessen ein.")
+# --- ACTION BUTTON ---
+
+if st.button("Prompt mit ChatGPT generieren ✨"):
+    with st.spinner("ChatGPT schreibt den perfekten Prompt..."):
+        gpt_result = get_chatgpt_prompt()
+        
+        if gpt_result:
+            st.success("Fertig!")
+            st.markdown("### Dein Veo/Midjourney Prompt")
+            st.code(gpt_result, language="text")
+            st.caption("Kopiere diesen Text in deinen AI-Video- oder Bildgenerator.")
+
+st.markdown("---")
+st.caption("Powered by OpenAI API & Streamlit")
