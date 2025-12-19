@@ -3,7 +3,7 @@ from openai import OpenAI
 
 # --- PAGE CONFIG ---
 st.set_page_config(
-    page_title="Veo Campaign Director Ultimate V3",
+    page_title="Veo Campaign Director Ultimate V4",
     page_icon="🎬",
     layout="wide"
 )
@@ -29,11 +29,8 @@ st.markdown("""
     h1, h2, h3 { font-family: 'Helvetica', sans-serif; }
     .stSelectbox, .stTextInput, .stTextArea { margin-bottom: 10px; }
     
-    /* Hervorhebung für die wichtige Checkbox */
-    div[data-testid="stCheckbox"] label span {
-        font-weight: bold;
-        color: #0068c9;
-    }
+    /* Boxen visuell etwas trennen */
+    div.block-container { padding-top: 2rem; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -48,8 +45,8 @@ with st.sidebar:
     st.info("Optimiert für Google Veo & Midjourney v6.")
 
 # --- HEADER ---
-st.title("🎬 Veo Campaign Director Ultimate (V3)")
-st.markdown("Profi-Tool für **High-End Werbekampagnen**. Volle Kontrolle über **Haarstruktur**, **Exakte Farben**, Outfit und Produkt.")
+st.title("🎬 Veo Campaign Director Ultimate (V4)")
+st.markdown("Profi-Tool für **High-End Werbekampagnen**. Volle Kontrolle über **Größenverhältnisse (Scale)**, Farben, Outfit und Produkt.")
 st.divider()
 
 # --- 1. MODEL LOOK ---
@@ -65,7 +62,6 @@ with col2:
     hair_color = st.text_input("Haarfarbe", value="dark brown")
 
 with col3:
-    # NEU: HAARSTRUKTUR SLIDER
     hair_texture = st.select_slider("Haarstruktur", options=["Straight (Glatt)", "Wavy (Wellig)", "Curly (Lockig)", "Coily (Afro)"], value="Wavy (Wellig)")
     hair_style = st.selectbox("Frisur-Stil", ["Loose & Open", "Sleek Ponytail", "Messy Bun", "Short Cut", "Bob Cut"])
 
@@ -118,18 +114,23 @@ with t3:
 with t4:
     lens = st.selectbox("Objektiv", ["85mm (Portrait)", "100mm Macro (Details)", "35mm (Lifestyle)", "24mm (Wide)"])
 
-# --- 4. KAMPAGNE & HINTERGRUND (NEU: COLOR PICKER) ---
+# --- 4. KAMPAGNE & PRODUKT (NEU: GRÖSSE) ---
 st.markdown("---")
-st.subheader("4. Die Kampagne (Produkt & Hintergrund)")
+st.subheader("4. Die Kampagne (Produkt, Größe & Hintergrund)")
 k1, k2 = st.columns([1, 1])
 
 with k1:
     product = st.text_input("Produkt / Thema", placeholder="z.B. Goldene Halskette mit Rubin")
-    wear_product = st.checkbox("Exaktes Produkt wird als Bild in Veo hochgeladen? (Referenz-Bild)", value=False,
+    
+    # NEU: GRÖSSEN-FUNKTION
+    st.markdown("**Objekt-Größe (Scale):**")
+    obj_type = st.radio("Art des Objekts", ["Kettenanhänger (Schmuck)", "Allgemeines Objekt"], horizontal=True)
+    obj_size = st.slider(f"Größe in cm", 0.5, 5.0, 2.5, 0.1, help="Bestimmt, wie groß das Objekt im Verhältnis zum Gesicht wirkt.")
+    
+    wear_product = st.checkbox("Referenz-Bild wird in Veo hochgeladen?", value=False,
                                help="Wenn an: Prompt befiehlt Veo, das Referenzbild zu nutzen.")
 
 with k2:
-    # NEU: Logic für Hintergrundfarbe
     bg_mode = st.radio("Hintergrund-Modus", ["Szenisch (Vorgefertigt)", "Einfarbig (Color Code)"], horizontal=True)
     
     if bg_mode == "Szenisch (Vorgefertigt)":
@@ -138,9 +139,8 @@ with k2:
                            "Blurred City Street", "Nature/Forest", "Blue Sky", "Abstract Gradient"])
         final_bg_instruction = f"{bg_selection} background"
     else:
-        # Der Color Picker
         custom_color = st.color_picker("Wähle den genauen Farbcode", "#FF0044")
-        st.caption(f"Gewählter Hex-Code: {custom_color}")
+        st.caption(f"Code: {custom_color}")
         final_bg_instruction = f"Solid background with exact hex color code {custom_color}, minimal studio style"
 
 # --- GPT GENERATION ---
@@ -151,28 +151,32 @@ def generate_prompt():
 
     client = OpenAI(api_key=api_key)
 
-    # Produkt Fokus
+    # GRÖSSEN LOGIK ÜBERSETZUNG
+    if obj_type == "Kettenanhänger (Schmuck)":
+        size_instr = f"SCALE DETAIL: The necklace pendant is delicate and small, exactly {obj_size}cm in height. Do not make it oversized."
+    else:
+        size_instr = f"SCALE DETAIL: The product object is approximately {obj_size}cm in size."
+
+    # Produkt Fokus & Referenz
     if wear_product:
         prod_instr = (f"CRITICAL INSTRUCTION: The user provides a reference image of the product '{product}'. "
-                      f"The output prompt MUST explicitly state: 'Using the provided product reference image, ensure the model is wearing exactly this specific item.' "
-                      f"The product '{product}' MUST be the absolute visual focus.")
+                      f"The output prompt MUST explicitly state: 'Using the provided product reference image, ensure the model is wearing/holding exactly this specific item.' "
+                      f"The product '{product}' MUST be the visual focus. {size_instr}")
         ref_reminder = "✅ WICHTIG: Lade jetzt das Bild des Produkts in Veo hoch!"
     else:
-        prod_instr = f"Campaign for product category '{product}', but model is NOT wearing it visibly. Focus on brand VIBE."
+        prod_instr = f"Campaign for product category '{product}'. Model is NOT wearing specific item visibly. Focus on brand VIBE. {size_instr}"
         ref_reminder = ""
 
-    # Outfit
     outfit_instr = f"OUTFIT: Model is wearing {clothing}." if clothing else "OUTFIT: Minimal luxury fashion."
 
     system_prompt = """
-    You are a Senior Art Director for High-End Commercial AI Generation (Google Veo).
+    You are a Senior Art Director for High-End Commercial AI Generation.
     Write a single, highly detailed prompt in English.
     
     MANDATORY RULES:
-    1. PRODUCT: If instructed, emphasize the product reference image usage.
+    1. SCALE/SIZE: You MUST adhere to the provided size (cm) description. Avoid unrealistic oversized jewelry.
     2. SKIN: "subsurface scattering, micropore texture, visible pores, vellus hair". NO plastic skin.
-    3. HAIR: Strictly follow the hair texture (straight vs curly).
-    4. BACKGROUND: If a hex color is provided, specify a solid studio background in that color.
+    3. BACKGROUND: If hex color provided, use it exactly.
     """
 
     user_prompt = f"""
@@ -190,7 +194,9 @@ def generate_prompt():
     - Gaze: {gaze}
     - Expression: {expression}
     
-    CONTEXT: {prod_instr}
+    CONTEXT & PRODUCT:
+    {prod_instr}
+    
     SETTING: {final_bg_instruction}. Lighting: {lighting}.
     
     TECHNICAL: {framing}, shot on {lens} lens. High fidelity, raw photo style.
