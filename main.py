@@ -3,7 +3,7 @@ from openai import OpenAI
 
 # --- PAGE CONFIG ---
 st.set_page_config(
-    page_title="Veo Campaign Director Ultimate V4",
+    page_title="Veo Campaign Director Ultimate V5",
     page_icon="🎬",
     layout="wide"
 )
@@ -45,8 +45,8 @@ with st.sidebar:
     st.info("Optimiert für Google Veo & Midjourney v6.")
 
 # --- HEADER ---
-st.title("🎬 Veo Campaign Director Ultimate (V4)")
-st.markdown("Profi-Tool für **High-End Werbekampagnen**. Volle Kontrolle über **Größenverhältnisse (Scale)**, Farben, Outfit und Produkt.")
+st.title("🎬 Veo Campaign Director Ultimate (V5)")
+st.markdown("Profi-Tool für **High-End Werbekampagnen**. Volle Kontrolle über **Format (Aspect Ratio)**, Größe, Styling und Produkt.")
 st.divider()
 
 # --- 1. MODEL LOOK ---
@@ -114,33 +114,41 @@ with t3:
 with t4:
     lens = st.selectbox("Objektiv", ["85mm (Portrait)", "100mm Macro (Details)", "35mm (Lifestyle)", "24mm (Wide)"])
 
-# --- 4. KAMPAGNE & PRODUKT (NEU: GRÖSSE) ---
+# --- 4. KAMPAGNE & FORMAT (NEU: FORMAT) ---
 st.markdown("---")
-st.subheader("4. Die Kampagne (Produkt, Größe & Hintergrund)")
+st.subheader("4. Format, Produkt & Hintergrund")
 k1, k2 = st.columns([1, 1])
 
 with k1:
     product = st.text_input("Produkt / Thema", placeholder="z.B. Goldene Halskette mit Rubin")
     
-    # NEU: GRÖSSEN-FUNKTION
+    # GRÖSSEN-FUNKTION
     st.markdown("**Objekt-Größe (Scale):**")
     obj_type = st.radio("Art des Objekts", ["Kettenanhänger (Schmuck)", "Allgemeines Objekt"], horizontal=True)
-    obj_size = st.slider(f"Größe in cm", 0.5, 5.0, 2.5, 0.1, help="Bestimmt, wie groß das Objekt im Verhältnis zum Gesicht wirkt.")
+    obj_size = st.slider(f"Größe in cm", 0.5, 5.0, 2.5, 0.1)
     
     wear_product = st.checkbox("Referenz-Bild wird in Veo hochgeladen?", value=False,
                                help="Wenn an: Prompt befiehlt Veo, das Referenzbild zu nutzen.")
 
 with k2:
+    # NEU: FORMAT AUSWAHL
+    st.markdown("**Bildformat (Aspect Ratio):**")
+    aspect_ratio = st.selectbox("Format wählen", 
+                                ["Querformat (16:9) - TV/Kino", 
+                                 "Hochformat (9:16) - Social Media/Reels", 
+                                 "Quadrat (1:1) - Instagram Post", 
+                                 "Cinematic Wide (21:9) - Breitbild Film"])
+
+    st.markdown("**Hintergrund:**")
     bg_mode = st.radio("Hintergrund-Modus", ["Szenisch (Vorgefertigt)", "Einfarbig (Color Code)"], horizontal=True)
     
     if bg_mode == "Szenisch (Vorgefertigt)":
-        bg_selection = st.selectbox("Hintergrund wählen", 
+        bg_selection = st.selectbox("Hintergrund Szenario", 
                           ["Clean White Studio", "Dark Luxury Background", "Warm Beige Tone", 
                            "Blurred City Street", "Nature/Forest", "Blue Sky", "Abstract Gradient"])
         final_bg_instruction = f"{bg_selection} background"
     else:
-        custom_color = st.color_picker("Wähle den genauen Farbcode", "#FF0044")
-        st.caption(f"Code: {custom_color}")
+        custom_color = st.color_picker("Wähle Farbe", "#FF0044")
         final_bg_instruction = f"Solid background with exact hex color code {custom_color}, minimal studio style"
 
 # --- GPT GENERATION ---
@@ -151,13 +159,27 @@ def generate_prompt():
 
     client = OpenAI(api_key=api_key)
 
-    # GRÖSSEN LOGIK ÜBERSETZUNG
+    # FORMAT LOGIK
+    if "16:9" in aspect_ratio:
+        ar_code = "--ar 16:9"
+        ar_text = "Wide Landscape Aspect Ratio (16:9)"
+    elif "9:16" in aspect_ratio:
+        ar_code = "--ar 9:16"
+        ar_text = "Vertical Portrait Aspect Ratio (9:16)"
+    elif "21:9" in aspect_ratio:
+        ar_code = "--ar 21:9"
+        ar_text = "Ultra-Wide Cinematic Aspect Ratio (21:9)"
+    else:
+        ar_code = "--ar 1:1"
+        ar_text = "Square Aspect Ratio (1:1)"
+
+    # GRÖSSEN LOGIK
     if obj_type == "Kettenanhänger (Schmuck)":
         size_instr = f"SCALE DETAIL: The necklace pendant is delicate and small, exactly {obj_size}cm in height. Do not make it oversized."
     else:
         size_instr = f"SCALE DETAIL: The product object is approximately {obj_size}cm in size."
 
-    # Produkt Fokus & Referenz
+    # PRODUKT LOGIK
     if wear_product:
         prod_instr = (f"CRITICAL INSTRUCTION: The user provides a reference image of the product '{product}'. "
                       f"The output prompt MUST explicitly state: 'Using the provided product reference image, ensure the model is wearing/holding exactly this specific item.' "
@@ -174,13 +196,14 @@ def generate_prompt():
     Write a single, highly detailed prompt in English.
     
     MANDATORY RULES:
-    1. SCALE/SIZE: You MUST adhere to the provided size (cm) description. Avoid unrealistic oversized jewelry.
-    2. SKIN: "subsurface scattering, micropore texture, visible pores, vellus hair". NO plastic skin.
-    3. BACKGROUND: If hex color provided, use it exactly.
+    1. FORMAT: Include the Aspect Ratio instructions clearly at the end (e.g., --ar 16:9).
+    2. SCALE: Adhere strictly to the size (cm) description.
+    3. SKIN: "subsurface scattering, micropore texture, visible pores, vellus hair". NO plastic skin.
+    4. BACKGROUND: If hex color provided, use it exactly.
     """
 
     user_prompt = f"""
-    Create a luxury ad prompt for Veo:
+    Create a luxury ad prompt for Veo/Midjourney:
     
     MODEL: {gender}, {age}, {ethnicity}.
     HAIR: {hair_texture} texture, {hair_color}, style: {hair_style}, {wind}.
@@ -199,7 +222,8 @@ def generate_prompt():
     
     SETTING: {final_bg_instruction}. Lighting: {lighting}.
     
-    TECHNICAL: {framing}, shot on {lens} lens. High fidelity, raw photo style.
+    TECHNICAL: {framing}, shot on {lens} lens. High fidelity, raw photo style. 
+    FORMAT: {ar_text} ({ar_code}).
     """
 
     try:
@@ -228,4 +252,4 @@ if st.button("AD-CAMPAIGN STARTEN 🚀"):
                 if reminder:
                     st.info(reminder)
                 st.code(prompt_res, language="text")
-                st.caption("Copy & Paste in Veo")
+                st.caption("Copy & Paste in Veo / Midjourney")
