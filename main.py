@@ -3,7 +3,7 @@ from openai import OpenAI
 
 # --- PAGE CONFIG ---
 st.set_page_config(
-    page_title="Veo Campaign Director Ultimate Final",
+    page_title="Veo Campaign Director Ultimate V2",
     page_icon="🎬",
     layout="wide"
 )
@@ -27,7 +27,8 @@ st.markdown("""
         color: white;
     }
     h1, h2, h3 { font-family: 'Helvetica', sans-serif; }
-    .stSelectbox, .stTextInput { margin-bottom: 10px; }
+    .stSelectbox, .stTextInput, .stTextArea { margin-bottom: 10px; }
+    
     /* Hervorhebung für die wichtige Checkbox */
     div[data-testid="stCheckbox"] label span {
         font-weight: bold;
@@ -44,15 +45,15 @@ with st.sidebar:
         api_key = st.secrets["OPENAI_API_KEY"]
     else:
         api_key = st.text_input("OpenAI API Key", type="password")
-    st.info("Dieser Generator ist optimiert für Google Veo und Midjourney v6.")
+    st.info("Optimiert für Google Veo & Midjourney v6.")
 
 # --- HEADER ---
-st.title("🎬 Veo Campaign Director Ultimate (Final)")
-st.markdown("Der Profi-Generator für **High-End Werbekampagnen**. Kontrolliere Haut, Licht, Pose und **Produkt-Referenzen**.")
+st.title("🎬 Veo Campaign Director Ultimate (V2)")
+st.markdown("Profi-Tool für **High-End Werbekampagnen**. Volle Kontrolle über Haut, Licht, **Outfit** und Produkt-Fokus.")
 st.divider()
 
 # --- 1. MODEL LOOK ---
-st.subheader("1. Model & Styling")
+st.subheader("1. Model Details")
 col1, col2, col3, col4 = st.columns(4)
 
 with col1:
@@ -64,34 +65,41 @@ with col2:
     hair_color = st.text_input("Haarfarbe", value="dark brown")
 
 with col3:
-    hair_style = st.selectbox("Frisur", ["Loose & Natural", "Sleek Ponytail", "Wet Look", "Messy Bun", "Short Buzz Cut"])
+    hair_style = st.selectbox("Frisur", ["Loose & Natural", "Sleek Ponytail", "Wet Look", "Messy Bun", "Short Buzz Cut", "Bob Cut"])
     eye_color = st.text_input("Augenfarbe", value="green")
 
 with col4:
     freckles = st.radio("Haut-Details", ["Klare Haut", "Sommersprossen"], horizontal=True)
     makeup = st.select_slider("Make-up", options=["No Makeup", "Natural/Clean", "Soft Glam", "High Fashion"])
 
-# --- 2. POSE & STIMMUNG ---
+# --- NEU: KLEIDUNG (OUTFIT) ---
 st.markdown("---")
-st.subheader("2. Pose, Blick & Vibe")
-p1, p2, p3, p4 = st.columns(4)
+st.subheader("2. Kleidung & Styling")
+c_outfit, c_pose = st.columns([1, 2])
 
-with p1:
-    pose = st.selectbox("Körperhaltung (Pose)", 
-                        ["Standing Upright (Power Pose)", "Relaxed Leaning", "Walking towards Camera", 
-                         "Sitting Elegantly", "Over the Shoulder", "Dynamic Action/Motion"])
+with c_outfit:
+    # NEUES FELD FÜR KLEIDUNG
+    clothing = st.text_area("Was trägt das Model? (Outfit)", 
+                            placeholder="z.B. Weißes Seidenkleid, Schwarzer Rollkragenpullover, Casual T-Shirt...",
+                            height=100)
 
-with p2:
-    gaze = st.selectbox("Blickrichtung", 
-                        ["Straight into Camera (Direct Eye Contact)", "Looking away (Dreamy)", 
-                         "Looking down (Thoughtful)", "Looking up (Hopeful)"])
+with c_pose:
+    # POSE LOGIK (verschoben für besseres Layout)
+    p1, p2, p3 = st.columns(3)
+    with p1:
+        pose = st.selectbox("Körperhaltung", 
+                            ["Standing Upright (Power Pose)", "Relaxed Leaning", "Walking towards Camera", 
+                             "Sitting Elegantly", "Dynamic Action", "Over the Shoulder"])
+    with p2:
+        gaze = st.selectbox("Blickrichtung", 
+                            ["Straight into Camera (Eye Contact)", "Looking away (Dreamy)", 
+                             "Looking down", "Looking up"])
+    with p3:
+        expression = st.selectbox("Gesichtsausdruck", 
+                                  ["Neutral & Cool", "Confident Smile", "Laughing", "Fierce/Intense", "Seductive"])
+    
+    wind = st.select_slider("Haar-Dynamik (Wind)", options=["Static", "Soft Breeze", "Strong Wind"], value="Soft Breeze")
 
-with p3:
-    expression = st.selectbox("Gesichtsausdruck", 
-                              ["Neutral & Cool", "Confident Smile", "Laughing/Authentic", "Fierce/Intense", "Seductive"])
-
-with p4:
-    wind = st.select_slider("Dynamik (Wind)", options=["Static", "Soft Breeze", "Strong Wind"], value="Soft Breeze")
 
 # --- 3. TECHNIK & SETTING ---
 st.markdown("---")
@@ -108,20 +116,21 @@ with t3:
     framing = st.selectbox("Ausschnitt", ["Extreme Close-Up (Face)", "Portrait (Head & Shoulders)", "Medium Shot (Waist Up)", "Full Body"])
 
 with t4:
-    lens = st.selectbox("Objektiv", ["85mm (Portrait)", "100mm Macro (Details)", "35mm (Lifestyle)", "24mm (Wide/Fashion)"])
+    lens = st.selectbox("Objektiv", ["85mm (Portrait)", "100mm Macro (Details)", "35mm (Lifestyle)", "24mm (Wide)"])
 
-# --- 4. KAMPAGNE & PRODUKT (WICHTIGES UPDATE) ---
+# --- 4. KAMPAGNE & PRODUKT ---
 st.markdown("---")
 st.subheader("4. Die Kampagne (Produkt & Referenz)")
-c1, c2 = st.columns([1, 1])
+k1, k2 = st.columns([1, 1])
 
-with c1:
+with k1:
     product = st.text_input("Produkt / Thema", placeholder="z.B. Goldene Halskette mit Rubin")
-    # DIE NEUE CHECKBOX LOGIK
+    
+    # HIER IST DIE ANGEPASSTE LOGIK
     wear_product = st.checkbox("Exaktes Produkt wird als Bild in Veo hochgeladen? (Referenz-Bild)", value=False,
-                               help="WICHTIG: Wenn angehakt, weist der Prompt Veo an, das Produkt aus deinem hochgeladenen Bild zu verwenden, anstatt eines zu erfinden.")
+                               help="Wenn an: Prompt befiehlt Veo, das Referenzbild zu nutzen UND den Fokus darauf zu legen.")
 
-with c2:
+with k2:
     bg = st.selectbox("Hintergrund", 
                       ["Clean White Studio", "Dark Luxury Background", "Warm Beige Tone", 
                        "Blurred City Street", "Nature/Forest", "Blue Sky", "Abstract Gradient"])
@@ -134,24 +143,31 @@ def generate_prompt():
 
     client = OpenAI(api_key=api_key)
 
-    # --- DIE NEUE PRODUKT LOGIK ---
+    # --- PRODUKT FOKUS LOGIK ---
     if wear_product:
-        # Wenn Haken gesetzt: Instruktion für Referenzbild
-        prod_instr = f"CRITICAL INSTRUCTION: The user provides a reference image of the product '{product}'. The output prompt MUST explicitly state: 'Using the provided product reference image, ensure the model is wearing exactly this specific item.'"
-        ref_reminder = "✅ Denke daran, das Bild der Kette/des Produkts in Veo hochzuladen!"
+        # HIER WURDE "SHALLOW DEPTH OF FIELD" und "FOCUS" HINZUGEFÜGT
+        prod_instr = (f"CRITICAL INSTRUCTION: The user provides a reference image of the product '{product}'. "
+                      f"The output prompt MUST explicitly state: 'Using the provided product reference image, ensure the model is wearing exactly this specific item.' "
+                      f"The product '{product}' MUST be the absolute visual focus of the shot (shallow depth of field highlighting the product).")
+        ref_reminder = "✅ WICHTIG: Lade jetzt das Bild des Produkts in Veo hoch!"
     else:
-        # Wenn Haken NICHT gesetzt: Nur der Vibe, kein spezifisches Produkt tragen
-        prod_instr = f"Campaign for the product category '{product}', but the model is NOT wearing a specific product visibly in this shot. Focus only on the brand vibe related to '{product}'."
+        prod_instr = f"Campaign for the product category '{product}', but the model is NOT wearing a specific product visibly. Focus on the brand VIBE."
         ref_reminder = ""
+
+    # Check ob Kleidung angegeben wurde
+    if clothing:
+        outfit_instr = f"OUTFIT: Model is wearing {clothing}."
+    else:
+        outfit_instr = "OUTFIT: Fashionable, minimal clothing fitting the luxury vibe."
 
     system_prompt = """
     You are a Senior Art Director for High-End Commercial AI Generation (Google Veo).
     Write a single, highly detailed prompt in English.
     
-    CRITICAL REQUIREMENTS:
-    1. PRODUCT REFERENCE: If the instructions mention a "reference image" for the product, you MUST explicitly write in the final prompt that Veo should use the provided image reference for that specific item.
+    MANDATORY RULES:
+    1. PRODUCT: If instructed, emphasize the product reference image and make it the focal point.
     2. SKIN: "subsurface scattering, micropore texture, visible pores, vellus hair". NO plastic skin.
-    3. POSE: Strictly follow the defined pose and gaze.
+    3. OUTFIT: Describe the clothing texture (silk, cotton, wool) based on user input.
     4. CAMERA: Include technical camera specs provided.
     """
 
@@ -161,6 +177,8 @@ def generate_prompt():
     MODEL: {gender}, {age}, {ethnicity}.
     STYLE: {hair_color} hair ({hair_style}, {wind}), {eye_color} eyes.
     SKIN/MAKEUP: {freckles}, {skin_finish} finish, {makeup} makeup.
+    
+    {outfit_instr}
     
     POSE & ACTION:
     - Pose: {pose}
@@ -197,9 +215,8 @@ if st.button("AD-CAMPAIGN STARTEN 🚀"):
             if prompt_res:
                 st.success("Prompt Generiert!")
                 
-                # Hinweis anzeigen, falls Referenzbild nötig ist
                 if reminder:
                     st.info(reminder)
                     
                 st.code(prompt_res, language="text")
-                st.caption("Copy & Paste in Veo (und Bild hochladen falls nötig).")
+                st.caption("Copy & Paste in Veo")
