@@ -3,127 +3,153 @@ from openai import OpenAI
 
 # --- PAGE CONFIG ---
 st.set_page_config(
-    page_title="Veo/AI Ad-Prompt Generator",
+    page_title="Veo Campaign Director",
     page_icon="🎬",
     layout="centered"
 )
 
-# --- CSS STYLING ---
+# --- CUSTOM CSS (Design-Upgrade) ---
 st.markdown("""
     <style>
+    /* Button Design */
     .stButton>button {
         width: 100%;
-        background-color: #10a37f; /* OpenAI Green */
+        background-color: #000000;
         color: white;
-        font-weight: bold;
+        border-radius: 8px;
+        padding: 12px;
+        font-weight: 600;
         border: none;
-        padding: 10px;
     }
+    .stButton>button:hover {
+        background-color: #333333;
+        color: white;
+    }
+    /* Input Felder Styling */
     .stTextInput>div>div>input {
-        background-color: #f8f9fa;
+        border-radius: 8px;
+    }
+    /* Header Styling */
+    h1 {
+        font-family: 'Helvetica', sans-serif;
+        font-weight: 700;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- SIDEBAR: API KEY ---
-with st.sidebar:
-    st.header("🔑 Einstellung")
-    api_key = st.text_input("OpenAI API Key eingeben", type="password", help="Dein Key beginnt mit sk-...")
-    st.info("Der Key wird nur für diese Sitzung verwendet und nicht gespeichert.")
-    st.markdown("---")
-    st.markdown("**Generiert für:**\n- Veo (Video)\n- Midjourney / Flux (Bild)")
-
-# --- MAIN CONTENT ---
-st.title("🎬 High-End Ad Campaign Prompter")
-st.markdown("Nutzt **ChatGPT**, um aus deinen Stichworten einen komplexen, photorealistischen Prompt zu schreiben.")
+# --- HEADER ---
+st.title("🎬 Veo Campaign Director")
+st.markdown("Generiere High-End Prompts für Werbekampagnen mit Fokus auf **ultra-realistische Hauttextur**.")
 st.divider()
 
-# --- INPUTS ---
-
+# --- INPUT SECTION: MODEL ---
 st.subheader("1. Das Model")
 col1, col2 = st.columns(2)
+
 with col1:
-    gender = st.selectbox("Geschlecht", ["Female Model", "Male Model", "Non-binary Model"])
+    gender = st.selectbox("Model Typ", ["Female Model", "Male Model", "Non-binary Model"])
     age_range = st.select_slider("Alter", options=["20s", "30s", "40s", "50s", "60+"], value="30s")
-    hair_color = st.text_input("Haarfarbe", value="dark brown", placeholder="z.B. platinum blonde")
+    ethnicity = st.text_input("Ethnie / Look", value="olive skin tone", placeholder="z.B. Scandinavian, Afro-Caribbean")
 
 with col2:
-    ethnicity = st.text_input("Ethnie / Hauttyp", value="olive skin tone", placeholder="z.B. scandinavian, east asian")
-    eye_color = st.text_input("Augenfarbe", value="hazel", placeholder="z.B. green")
-    freckles = st.radio("Haut-Details", ["Klare Haut (aber texturiert)", "Sommersprossen / Charakter"], horizontal=True)
+    hair_color = st.text_input("Haarfarbe", value="dark brown")
+    # NEU: Auswahl Frisur
+    hair_style = st.selectbox("Frisur", ["Open loose hair", "Sleek ponytail", "Messy bun", "Braided hair", "Short buzz cut"])
+    eye_color = st.text_input("Augenfarbe", value="hazel")
 
+# --- INPUT SECTION: KAMPAGNE ---
 st.markdown("---")
+st.subheader("2. Kampagne & Setting")
 
-st.subheader("2. Ausschnitt & Kampagne")
 c1, c2 = st.columns(2)
 
 with c1:
-    # Framing Auswahl
-    frame_from = st.selectbox("Ausschnitt Start (Unten)", ["Chest", "Shoulders", "Neck", "Chin"])
-    frame_to = st.selectbox("Ausschnitt Ende (Oben)", ["Top of Head", "Hairline", "Forehead", "Eyes"])
+    # NEU: Freies Textfeld für das Produkt
+    product_focus = st.text_input("Wofür ist die Werbung?", 
+                                placeholder="z.B. Goldene Ohrringe, Anti-Aging Creme, Luxus-Handtasche")
     
-with c2:
-    industry = st.selectbox("Branche", ["Skincare (Macro)", "Fashion (Editorial)", "Tech (Business)", "Automotive/Lifestyle"])
-    background = st.text_input("Hintergrund", value="blurred city lights at dusk", placeholder="Ortsbeschreibung")
+    # NEU: Vorgefertigte Hintergründe
+    bg_options = {
+        "Studio White": "clean bright white studio background, commercial lighting",
+        "Studio Red": "deep red background, dramatic cinematic lighting",
+        "Studio Beige": "warm beige soft luxury background, organic feel",
+        "Studio Black": "pitch black background, rim lighting, moody",
+        "Outdoor City": "blurred city street at golden hour (bokeh)",
+        "Outdoor Nature": "soft green forest background, natural sunlight",
+        "Abstract Gradient": "soft abstract color gradient background, modern art style"
+    }
+    selected_bg_name = st.selectbox("Hintergrund wählen", list(bg_options.keys()))
+    background_prompt = bg_options[selected_bg_name]
 
-# --- GPT GENERATION FUNCTION ---
+with c2:
+    # Framing
+    frame_from = st.selectbox("Ausschnitt Start (Unten)", ["Chest", "Shoulders", "Neck", "Chin", "Waist"])
+    frame_to = st.selectbox("Ausschnitt Ende (Oben)", ["Top of Head", "Hairline", "Forehead", "Eyes"])
+
+# --- GPT LOGIC ---
 
 def get_chatgpt_prompt():
-    if not api_key:
-        st.error("⚠️ Bitte gib zuerst deinen OpenAI API Key in der Sidebar ein.")
+    # SICHERHEITS-CHECK: Prüfen ob der Secret Key da ist
+    if "OPENAI_API_KEY" not in st.secrets:
+        st.error("⚠️ API Key fehlt! Bitte setze 'OPENAI_API_KEY' in den Streamlit Secrets.")
         return None
 
-    client = OpenAI(api_key=api_key)
+    # Key aus den Secrets laden (nicht hardcodiert!)
+    client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
-    # Hier definieren wir die "Rolle" von ChatGPT
     system_instruction = """
-    You are an expert AI Prompt Engineer specialized in creating prompts for Google Veo and Midjourney v6.
-    Your goal is to write prompts for HIGH-END ADVERTISING CAMPAIGNS.
+    You are a High-End Commercial Art Director specializing in Generative AI (Veo/Midjourney).
+    Your goal is to write a single, fluid, highly descriptive prompt in English.
     
-    CRITICAL RULES FOR REALISM:
-    1. You MUST include these technical terms to ensure realistic skin: "subsurface scattering, micropore texture, visible skin pores, peach fuzz, vellus hair, unretouched raw photo".
-    2. Avoid "smooth" or "plastic" skin descriptions. 
-    3. Specify the camera gear based on the industry (e.g., Phase One XF IQ4 for fashion).
-    4. Write the output as a single, highly descriptive paragraph in English.
+    MANDATORY TEXTURE RULES:
+    - You must strictly enforce "subsurface scattering, micropore texture, visible pores, vellus hair".
+    - Reject any "smooth" or "airbrushed" skin descriptions. 
+    - Include camera gear specifics (e.g., "Shot on Phase One XF IQ4, 100mm Macro lens" for jewelry/beauty).
     """
 
-    # Der Inhalt, den ChatGPT verarbeiten soll
     user_content = f"""
-    Create a photorealistic prompt for a {gender} in their {age_range}.
-    Details: {hair_color} hair, {eye_color} eyes, {ethnicity}.
-    Skin features: {freckles}.
+    Create a luxury commercial prompt.
     
-    FRAMING: The shot must be a close-up specifically from {frame_from} to {frame_to}.
-    CONTEXT: This is a {industry} campaign. Background: {background}.
+    SUBJECT: {gender}, {age_range}, {ethnicity}.
+    HAIR: {hair_color}, styled in {hair_style}.
+    EYES: {eye_color}.
     
-    Make it look like a high-budget commercial production.
+    CAMPAIGN FOCUS: The product is "{product_focus}". Ensure the pose and lighting highlights this specific product.
+    
+    FRAMING: Strict close-up from {frame_from} to {frame_to}.
+    BACKGROUND: {background_prompt}.
+    
+    Make it look like a global campaign (Vogue/Billboard quality).
     """
 
     try:
         response = client.chat.completions.create(
-            model="gpt-4o", # oder gpt-3.5-turbo, wenn du sparen willst
+            model="gpt-4o", 
             messages=[
                 {"role": "system", "content": system_instruction},
                 {"role": "user", "content": user_content}
             ],
-            temperature=0.7 # Ein bisschen Kreativität zulassen
+            temperature=0.7
         )
         return response.choices[0].message.content
     except Exception as e:
-        st.error(f"Ein Fehler ist aufgetreten: {e}")
+        st.error(f"Fehler bei OpenAI: {e}")
         return None
 
-# --- ACTION BUTTON ---
+# --- OUTPUT ---
 
-if st.button("Prompt mit ChatGPT generieren ✨"):
-    with st.spinner("ChatGPT schreibt den perfekten Prompt..."):
-        gpt_result = get_chatgpt_prompt()
-        
-        if gpt_result:
-            st.success("Fertig!")
-            st.markdown("### Dein Veo/Midjourney Prompt")
-            st.code(gpt_result, language="text")
-            st.caption("Kopiere diesen Text in deinen AI-Video- oder Bildgenerator.")
+if st.button("AD-PROMPT GENERIEREN ✨"):
+    if not product_focus:
+        st.warning("Bitte gib ein, wofür die Werbung ist (z.B. 'Ohrringe').")
+    else:
+        with st.spinner("AI Director schreibt den Prompt..."):
+            gpt_result = get_chatgpt_prompt()
+            
+            if gpt_result:
+                st.success("Prompt fertig!")
+                st.markdown("### 📋 Dein Prompt")
+                st.code(gpt_result, language="text")
+                st.caption("Kopiere diesen Text in Veo oder Midjourney.")
 
 st.markdown("---")
-st.caption("Powered by OpenAI API & Streamlit")
+st.caption("Internal Tool • Protected by Streamlit Secrets")
