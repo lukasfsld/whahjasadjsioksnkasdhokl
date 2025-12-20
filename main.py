@@ -34,12 +34,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- SIDEBAR: API KEY ---
-with st.sidebar:
-    st.header("🔑 Settings")
-    if "OPENAI_API_KEY" in st.secrets:
-        st.success("API Key aktiv (Secrets) ✅")
-        api_key = st.secrets["OPENAI_API_KEY"]
+
     else:
         api_key = st.text_input("OpenAI API Key", type="password")
     st.info("Optimiert für Google Veo & Midjourney v6.")
