@@ -3,8 +3,8 @@ from openai import OpenAI
 
 # --- PAGE CONFIG ---
 st.set_page_config(
-    page_title="Veo Campaign Director Ultimate V6",
-    page_icon="🎬",
+    page_title="Nano Banana Campaign Director (V8)",
+    page_icon="🍌",
     layout="wide"
 )
 
@@ -13,23 +13,25 @@ st.markdown("""
     <style>
     .stButton>button {
         width: 100%;
-        background-color: #000000;
-        color: white;
+        background-color: #FFD700; /* Banana Yellow */
+        color: black;
         border-radius: 8px;
         padding: 16px;
-        font-weight: 700;
+        font-weight: 800;
         font-size: 18px;
         border: none;
         margin-top: 20px;
     }
     .stButton>button:hover {
-        background-color: #333333;
-        color: white;
+        background-color: #E5C100;
+        color: black;
     }
     h1, h2, h3 { font-family: 'Helvetica', sans-serif; }
     .stSelectbox, .stTextInput, .stTextArea { margin-bottom: 10px; }
     
     div.block-container { padding-top: 2rem; }
+    /* Wichtiger Hinweis Style */
+    .stAlert { font-weight: bold; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -41,11 +43,14 @@ with st.sidebar:
         api_key = st.secrets["OPENAI_API_KEY"]
     else:
         api_key = st.text_input("OpenAI API Key", type="password")
-    st.info("Optimiert für Google Veo & Midjourney v6.")
+    
+    st.info("Optimiert für **Nano Banana** (Gemini 2.5 Flash / 3 Pro Image).")
+    st.markdown("---")
+    st.caption("Nano Banana ist der Codename für Googles neueste Image-Modelle.")
 
 # --- HEADER ---
-st.title("🎬 Veo Campaign Director Ultimate (V6)")
-st.markdown("Profi-Tool für **High-End Werbekampagnen**. Volle Kontrolle über Format, **Optionale Größen**, Styling und Produkt.")
+st.title("🍌 Nano Banana Campaign Director")
+st.markdown("Erstelle perfekte Prompts für **Nano Banana** (Google Gemini Image). Nutze die Stärken: **Text-Rendering**, **Referenz-Bilder** und **High-Speed Editing**.")
 st.divider()
 
 # --- 1. MODEL LOOK ---
@@ -96,16 +101,21 @@ with c_pose:
     wind = st.select_slider("Haar-Dynamik (Wind)", options=["Static", "Soft Breeze", "Strong Wind"], value="Soft Breeze")
 
 
-# --- 3. TECHNIK & SETTING ---
+# --- 3. TECHNIK & CINEMATOGRAPHY ---
 st.markdown("---")
-st.subheader("3. Technik, Haut & Licht")
+st.subheader("3. Technik, Film-Look & Kamera")
 t1, t2, t3, t4 = st.columns(4)
 
 with t1:
-    skin_finish = st.selectbox("Haut-Finish", ["Natural Matte", "Dewy & Glowy", "Sweaty/Athletic", "Glass Skin"])
+    # Nano Banana ist super für Texturen
+    cam_move = st.selectbox("Kamera-Bewegung (Falls Video)", 
+                            ["Static Tripod (Best for Image)", "Slow Zoom In", "Handheld", "Drone Orbit"])
 
 with t2:
-    lighting = st.selectbox("Licht-Setzung", ["Soft Beauty Light", "Golden Hour (Sun)", "Rembrandt (Moody)", "Cinematic Contrast", "Neon"])
+    film_look = st.selectbox("Film Look (Color Grading)", 
+                             ["Standard Commercial (Clean)", "Kodak Portra 400 (Warm/Vintage)", 
+                              "Teal & Orange (Blockbuster)", "Black & White (Noir)", 
+                              "Pastel/Dreamy (Soft)", "Moody/Desaturated (Dark)"])
 
 with t3:
     framing = st.selectbox("Ausschnitt", ["Extreme Close-Up (Face)", "Portrait (Head & Shoulders)", "Medium Shot (Waist Up)", "Full Body"])
@@ -113,43 +123,42 @@ with t3:
 with t4:
     lens = st.selectbox("Objektiv", ["85mm (Portrait)", "100mm Macro (Details)", "35mm (Lifestyle)", "24mm (Wide)"])
 
-# --- 4. KAMPAGNE & FORMAT (NEU: OPTIONALE GRÖSSE) ---
+# --- 4. SETTING, PRODUKT & REFERENZ ---
 st.markdown("---")
-st.subheader("4. Format, Produkt & Hintergrund")
+st.subheader("4. Format, Produkt & Nano-Features")
 k1, k2 = st.columns([1, 1])
 
 with k1:
     product = st.text_input("Produkt / Thema", placeholder="z.B. Goldene Halskette mit Rubin")
     
     st.markdown("---")
-    # NEU: OPTIONALE GRÖSSENANGABE
-    use_size = st.checkbox("Spezifische Größe (cm) angeben?", value=False, help="Aktiviere dies, um die exakte Größe von Anhängern oder Objekten zu steuern.")
+    use_size = st.checkbox("Spezifische Größe (cm) angeben?", value=False)
     
     if use_size:
         st.caption("Größen-Einstellungen:")
         obj_type = st.radio("Art des Objekts", ["Kettenanhänger (Schmuck)", "Allgemeines Objekt"], horizontal=True)
         obj_size = st.slider(f"Größe in cm", 0.5, 5.0, 2.5, 0.1)
     else:
-        # Default Werte falls deaktiviert
         obj_type = None
         obj_size = None
     
     st.markdown("---")
-    wear_product = st.checkbox("Referenz-Bild wird in Veo hochgeladen?", value=False,
-                               help="Wenn an: Prompt befiehlt Veo, das Referenzbild zu nutzen.")
+    # NANO BANANA SPECIFIC: REFERENCE IMAGES
+    wear_product = st.checkbox("Referenz-Bild wird in Nano Banana hochgeladen?", value=False,
+                               help="Nano Banana (Gemini) unterstützt bis zu 14 Referenzbilder für perfektes Style-Matching.")
 
 with k2:
-    st.markdown("**Bildformat (Aspect Ratio):**")
+    st.markdown("**Bildformat:**")
     aspect_ratio = st.selectbox("Format wählen", 
-                                ["Querformat (16:9) - TV/Kino", 
-                                 "Hochformat (9:16) - Social Media/Reels", 
-                                 "Quadrat (1:1) - Instagram Post", 
-                                 "Cinematic Wide (21:9) - Breitbild Film"])
+                                ["Querformat (16:9)", "Hochformat (9:16)", "Quadrat (1:1)", "Cinematic (21:9)"])
 
-    st.markdown("**Hintergrund:**")
-    bg_mode = st.radio("Hintergrund-Modus", ["Szenisch (Vorgefertigt)", "Einfarbig (Color Code)"], horizontal=True)
+    st.markdown("**Hintergrund & Wetter:**")
+    weather = st.selectbox("Wetter / Atmosphäre", 
+                           ["Clear/Sunny", "Cloudy/Soft", "Rainy/Wet Skin", "Foggy/Misty", "Snowing"])
     
-    if bg_mode == "Szenisch (Vorgefertigt)":
+    bg_mode = st.radio("Hintergrund-Modus", ["Szenisch", "Einfarbig"], horizontal=True, label_visibility="collapsed")
+    
+    if bg_mode == "Szenisch":
         bg_selection = st.selectbox("Hintergrund Szenario", 
                           ["Clean White Studio", "Dark Luxury Background", "Warm Beige Tone", 
                            "Blurred City Street", "Nature/Forest", "Blue Sky", "Abstract Gradient"])
@@ -157,8 +166,10 @@ with k2:
     else:
         custom_color = st.color_picker("Wähle Farbe", "#FF0044")
         final_bg_instruction = f"Solid background with exact hex color code {custom_color}, minimal studio style"
+    
+    lighting = st.selectbox("Licht-Setzung", ["Soft Beauty Light", "Golden Hour", "Rembrandt", "Cinematic Contrast", "Neon"])
 
-# --- GPT GENERATION ---
+# --- GPT GENERATION FOR NANO BANANA ---
 def generate_prompt():
     if not api_key:
         st.error("⚠️ API Key fehlt!")
@@ -166,72 +177,62 @@ def generate_prompt():
 
     client = OpenAI(api_key=api_key)
 
-    # FORMAT LOGIK
-    if "16:9" in aspect_ratio:
-        ar_code = "--ar 16:9"
-        ar_text = "Wide Landscape Aspect Ratio (16:9)"
-    elif "9:16" in aspect_ratio:
-        ar_code = "--ar 9:16"
-        ar_text = "Vertical Portrait Aspect Ratio (9:16)"
-    elif "21:9" in aspect_ratio:
-        ar_code = "--ar 21:9"
-        ar_text = "Ultra-Wide Cinematic Aspect Ratio (21:9)"
-    else:
-        ar_code = "--ar 1:1"
-        ar_text = "Square Aspect Ratio (1:1)"
+    # FORMAT LOGIK (Nano Banana versteht Aspect Ratios in Natural Language gut)
+    if "16:9" in aspect_ratio: ar_text = "Aspect Ratio: 16:9 (Wide)"
+    elif "9:16" in aspect_ratio: ar_text = "Aspect Ratio: 9:16 (Vertical)"
+    elif "21:9" in aspect_ratio: ar_text = "Aspect Ratio: 21:9 (Cinematic)"
+    else: ar_text = "Aspect Ratio: 1:1 (Square)"
 
-    # GRÖSSEN LOGIK (NUR WENN AKTIVIERT)
+    # GRÖSSE
     size_instr = ""
     if use_size and obj_size:
         if obj_type == "Kettenanhänger (Schmuck)":
-            size_instr = f"SCALE DETAIL: The necklace pendant is delicate and small, exactly {obj_size}cm in height. Do not make it oversized."
+            size_instr = f"SCALE: The necklace pendant must be rendered exactly {obj_size}cm in height, appearing delicate."
         else:
-            size_instr = f"SCALE DETAIL: The product object is approximately {obj_size}cm in size."
+            size_instr = f"SCALE: The product object is approximately {obj_size}cm in size relative to the model."
 
-    # PRODUKT LOGIK
+    # PRODUKT & REFERENZ (Nano Banana Stärke)
     if wear_product:
-        prod_instr = (f"CRITICAL INSTRUCTION: The user provides a reference image of the product '{product}'. "
-                      f"The output prompt MUST explicitly state: 'Using the provided product reference image, ensure the model is wearing/holding exactly this specific item.' "
-                      f"The product '{product}' MUST be the visual focus. {size_instr}")
-        ref_reminder = "✅ WICHTIG: Lade jetzt das Bild des Produkts in Veo hoch!"
+        prod_instr = (f"CRITICAL FOR NANO BANANA: The user is providing a REFERENCE IMAGE of the product '{product}'. "
+                      f"Instructions: 'Use the uploaded reference image to perform precise in-context blending. "
+                      f"The model should be wearing exactly this item.' Focus strictly on '{product}'. {size_instr}")
+        ref_reminder = "✅ WICHTIG: Lade jetzt dein Produkt-Bild in Nano Banana (Gemini) hoch!"
     else:
-        prod_instr = f"Campaign for product category '{product}'. Model is NOT wearing specific item visibly. Focus on brand VIBE. {size_instr}"
+        prod_instr = f"Campaign for '{product}'. Model is NOT wearing a specific reference item. Generate a high-quality representation based on description. {size_instr}"
         ref_reminder = ""
 
-    outfit_instr = f"OUTFIT: Model is wearing {clothing}." if clothing else "OUTFIT: Minimal luxury fashion."
+    outfit_instr = f"OUTFIT: Model is wearing {clothing}." if clothing else "OUTFIT: High-fashion minimal clothing."
 
+    atmosphere_instr = f"ATMOSPHERE: {weather}. COLOR GRADE: {film_look}."
+
+    # SYSTEM PROMPT FÜR NANO BANANA (GEMINI)
     system_prompt = """
-    You are a Senior Art Director for High-End Commercial AI Generation.
-    Write a single, highly detailed prompt in English.
+    You are an expert Prompt Engineer for Google's 'Nano Banana' (Gemini 2.5 Flash / Gemini 3 Pro Image) model.
     
-    MANDATORY RULES:
-    1. FORMAT: Include the Aspect Ratio instructions clearly at the end (e.g., --ar 16:9).
-    2. SKIN: "subsurface scattering, micropore texture, visible pores, vellus hair". NO plastic skin.
-    3. BACKGROUND: If hex color provided, use it exactly.
+    NANO BANANA SPECIFICS:
+    1. It excels at adhering to prompt complexity and text rendering.
+    2. It supports multi-turn editing and reference images perfectly.
+    3. Use keywords like "photorealistic", "8k", "highly detailed skin texture" (it's known for this).
+    
+    YOUR GOAL:
+    Write a single, comprehensive paragraph prompt in English that triggers Nano Banana's best capabilities.
+    Include "subsurface scattering" and "micropore texture" as requested.
     """
 
     user_prompt = f"""
-    Create a luxury ad prompt for Veo/Midjourney:
+    Write a Nano Banana prompt:
     
-    MODEL: {gender}, {age}, {ethnicity}.
-    HAIR: {hair_texture} texture, {hair_color}, style: {hair_style}, {wind}.
-    EYES: {eye_color}.
-    SKIN/MAKEUP: {freckles}, {skin_finish} finish, {makeup} makeup.
+    SUBJECT: {gender}, {age}, {ethnicity}.
+    LOOK: {hair_texture}, {hair_color}, {hair_style}, {wind}. {eye_color} eyes.
+    SKIN: {freckles}, {makeup} makeup. (Ensure subsurface scattering & micropore texture).
     
-    {outfit_instr}
+    POSE: {pose}, {gaze}, {expression}.
     
-    POSE & ACTION:
-    - Pose: {pose}
-    - Gaze: {gaze}
-    - Expression: {expression}
+    PRODUCT CONTEXT: {prod_instr}
     
-    CONTEXT & PRODUCT:
-    {prod_instr}
-    
-    SETTING: {final_bg_instruction}. Lighting: {lighting}.
-    
-    TECHNICAL: {framing}, shot on {lens} lens. High fidelity, raw photo style. 
-    FORMAT: {ar_text} ({ar_code}).
+    SCENE: {final_bg_instruction}. {lighting}. {atmosphere_instr}.
+    CAMERA: {framing}, {lens}. {cam_move}.
+    FORMAT: {ar_text}.
     """
 
     try:
@@ -249,15 +250,15 @@ def generate_prompt():
         return None, None
 
 # --- OUTPUT ---
-if st.button("AD-CAMPAIGN STARTEN 🚀"):
+if st.button("NANO BANANA PROMPT GENERIEREN 🍌"):
     if not product:
         st.warning("Bitte gib ein Produkt ein!")
     else:
-        with st.spinner("Writing Director's Treatment..."):
+        with st.spinner("Optimiere für Gemini 2.5 / Nano Banana..."):
             prompt_res, reminder = generate_prompt()
             if prompt_res:
-                st.success("Prompt Generiert!")
+                st.success("🍌 Nano Banana Prompt fertig!")
                 if reminder:
                     st.info(reminder)
                 st.code(prompt_res, language="text")
-                st.caption("Copy & Paste in Veo / Midjourney")
+                st.caption("Kopiere diesen Text in Google Gemini / Nano Banana Interface.")
