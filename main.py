@@ -3,7 +3,7 @@ from openai import OpenAI
 
 # --- PAGE CONFIG ---
 st.set_page_config(
-    page_title="Veo Campaign Director Ultimate V5",
+    page_title="Veo Campaign Director Ultimate V6",
     page_icon="🎬",
     layout="wide"
 )
@@ -29,7 +29,6 @@ st.markdown("""
     h1, h2, h3 { font-family: 'Helvetica', sans-serif; }
     .stSelectbox, .stTextInput, .stTextArea { margin-bottom: 10px; }
     
-    /* Boxen visuell etwas trennen */
     div.block-container { padding-top: 2rem; }
     </style>
     """, unsafe_allow_html=True)
@@ -45,8 +44,8 @@ with st.sidebar:
     st.info("Optimiert für Google Veo & Midjourney v6.")
 
 # --- HEADER ---
-st.title("🎬 Veo Campaign Director Ultimate (V5)")
-st.markdown("Profi-Tool für **High-End Werbekampagnen**. Volle Kontrolle über **Format (Aspect Ratio)**, Größe, Styling und Produkt.")
+st.title("🎬 Veo Campaign Director Ultimate (V6)")
+st.markdown("Profi-Tool für **High-End Werbekampagnen**. Volle Kontrolle über Format, **Optionale Größen**, Styling und Produkt.")
 st.divider()
 
 # --- 1. MODEL LOOK ---
@@ -114,7 +113,7 @@ with t3:
 with t4:
     lens = st.selectbox("Objektiv", ["85mm (Portrait)", "100mm Macro (Details)", "35mm (Lifestyle)", "24mm (Wide)"])
 
-# --- 4. KAMPAGNE & FORMAT (NEU: FORMAT) ---
+# --- 4. KAMPAGNE & FORMAT (NEU: OPTIONALE GRÖSSE) ---
 st.markdown("---")
 st.subheader("4. Format, Produkt & Hintergrund")
 k1, k2 = st.columns([1, 1])
@@ -122,16 +121,24 @@ k1, k2 = st.columns([1, 1])
 with k1:
     product = st.text_input("Produkt / Thema", placeholder="z.B. Goldene Halskette mit Rubin")
     
-    # GRÖSSEN-FUNKTION
-    st.markdown("**Objekt-Größe (Scale):**")
-    obj_type = st.radio("Art des Objekts", ["Kettenanhänger (Schmuck)", "Allgemeines Objekt"], horizontal=True)
-    obj_size = st.slider(f"Größe in cm", 0.5, 5.0, 2.5, 0.1)
+    st.markdown("---")
+    # NEU: OPTIONALE GRÖSSENANGABE
+    use_size = st.checkbox("Spezifische Größe (cm) angeben?", value=False, help="Aktiviere dies, um die exakte Größe von Anhängern oder Objekten zu steuern.")
     
+    if use_size:
+        st.caption("Größen-Einstellungen:")
+        obj_type = st.radio("Art des Objekts", ["Kettenanhänger (Schmuck)", "Allgemeines Objekt"], horizontal=True)
+        obj_size = st.slider(f"Größe in cm", 0.5, 5.0, 2.5, 0.1)
+    else:
+        # Default Werte falls deaktiviert
+        obj_type = None
+        obj_size = None
+    
+    st.markdown("---")
     wear_product = st.checkbox("Referenz-Bild wird in Veo hochgeladen?", value=False,
                                help="Wenn an: Prompt befiehlt Veo, das Referenzbild zu nutzen.")
 
 with k2:
-    # NEU: FORMAT AUSWAHL
     st.markdown("**Bildformat (Aspect Ratio):**")
     aspect_ratio = st.selectbox("Format wählen", 
                                 ["Querformat (16:9) - TV/Kino", 
@@ -173,11 +180,13 @@ def generate_prompt():
         ar_code = "--ar 1:1"
         ar_text = "Square Aspect Ratio (1:1)"
 
-    # GRÖSSEN LOGIK
-    if obj_type == "Kettenanhänger (Schmuck)":
-        size_instr = f"SCALE DETAIL: The necklace pendant is delicate and small, exactly {obj_size}cm in height. Do not make it oversized."
-    else:
-        size_instr = f"SCALE DETAIL: The product object is approximately {obj_size}cm in size."
+    # GRÖSSEN LOGIK (NUR WENN AKTIVIERT)
+    size_instr = ""
+    if use_size and obj_size:
+        if obj_type == "Kettenanhänger (Schmuck)":
+            size_instr = f"SCALE DETAIL: The necklace pendant is delicate and small, exactly {obj_size}cm in height. Do not make it oversized."
+        else:
+            size_instr = f"SCALE DETAIL: The product object is approximately {obj_size}cm in size."
 
     # PRODUKT LOGIK
     if wear_product:
@@ -197,9 +206,8 @@ def generate_prompt():
     
     MANDATORY RULES:
     1. FORMAT: Include the Aspect Ratio instructions clearly at the end (e.g., --ar 16:9).
-    2. SCALE: Adhere strictly to the size (cm) description.
-    3. SKIN: "subsurface scattering, micropore texture, visible pores, vellus hair". NO plastic skin.
-    4. BACKGROUND: If hex color provided, use it exactly.
+    2. SKIN: "subsurface scattering, micropore texture, visible pores, vellus hair". NO plastic skin.
+    3. BACKGROUND: If hex color provided, use it exactly.
     """
 
     user_prompt = f"""
