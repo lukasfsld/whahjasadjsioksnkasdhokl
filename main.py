@@ -20,6 +20,9 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 with open(SCRIPT_DIR / "prompt_template.j2", "r", encoding="utf-8") as f:
     PROMPT_TEMPLATE = Template(f.read())
 
+with open(SCRIPT_DIR / "video_template.j2", "r", encoding="utf-8") as f:
+    VIDEO_TEMPLATE = Template(f.read())
+
 with open(SCRIPT_DIR / "presets.json", "r", encoding="utf-8") as f:
     PRESETS = json.load(f)
 
@@ -89,7 +92,8 @@ with st.sidebar:
     st.header("📜 Prompt-Historie")
     if st.session_state.prompt_history:
         for i, entry in enumerate(reversed(st.session_state.prompt_history)):
-            with st.expander(f"#{len(st.session_state.prompt_history) - i} — {entry['time']}"):
+            etype = entry.get("type", "📷 Bild")
+            with st.expander(f"#{len(st.session_state.prompt_history) - i} {etype} — {entry['time']}"):
                 st.code(entry["prompt"], language="text")
         if st.button("🗑️ Historie löschen"):
             st.session_state.prompt_history = []
@@ -304,6 +308,108 @@ with k2:
         final_bg = f"Solid background hex {col}"
 
 
+# --- 5. VEO3 VIDEO GENERATION ---
+st.markdown("---")
+st.subheader("5. 🎬 Veo3 Video-Generation (optional)")
+use_video = st.checkbox("Video-Prompt aktivieren", value=False,
+                        help="Erweitert den Bild-Prompt um Veo3 Video-Anweisungen.")
+
+if use_video:
+    v1, v2, v3 = st.columns(3)
+
+    with v1:
+        st.markdown("**Video-Basics**")
+        video_duration = st.select_slider("Dauer (Sekunden)", options=[3, 5, 8, 10, 15], value=5)
+        video_ratio = st.selectbox("Video-Format", ["16:9 (Landscape)", "9:16 (Vertical/Reels)", "1:1 (Square)"])
+        video_fps = st.selectbox("Framerate", ["24fps (Cinematic)", "30fps (Standard)", "60fps (Smooth)"])
+
+    with v2:
+        st.markdown("**Model-Aktion**")
+        model_action = st.selectbox("Was macht das Model?", [
+            "Walks slowly towards camera",
+            "Walks past camera (Runway Walk)",
+            "Poses with jewelry / product",
+            "Turns head slowly to camera",
+            "Touches / adjusts product on body",
+            "Picks up product from table",
+            "Stands still, only subtle breathing",
+            "Spins around (Full Body Reveal)",
+            "Sits down elegantly",
+            "Leans against wall, shifts weight",
+            "Custom..."
+        ])
+        if model_action == "Custom...":
+            model_action = st.text_input("Eigene Aktion beschreiben",
+                                         placeholder="z.B. Model nimmt Sonnenbrille ab und lächelt")
+
+        action_detail = st.text_input("Zusatz-Detail (optional)",
+                                      placeholder="z.B. Finger streicht über Anhänger, Haare fallen ins Gesicht")
+
+        movement_speed = st.select_slider("Bewegungs-Tempo",
+                                          options=["Very Slow (Slow-Mo Feel)", "Slow & Elegant",
+                                                   "Natural Pace", "Energetic / Fast"],
+                                          value="Slow & Elegant")
+
+    with v3:
+        st.markdown("**Atmosphäre & Sound**")
+
+        # Wind
+        video_wind = st.selectbox("Wind im Video", [
+            "Kein Wind",
+            "Gentle breeze (leicht)",
+            "Medium wind (Haare wehen)",
+            "Strong dramatic wind (Stoff fliegt)",
+            "Fan wind from front (Studio-Ventilator)"
+        ])
+
+        # Camera movement for video
+        video_cam = st.selectbox("Kamera-Bewegung (Video)", [
+            "Static (Stativ, Model bewegt sich)",
+            "Slow tracking forward",
+            "Slow tracking sideways (Dolly)",
+            "360° Orbit around model",
+            "Slow zoom in on face",
+            "Crane shot (oben nach unten)",
+            "Handheld (leicht wackelig, authentisch)"
+        ])
+
+    # Dialogue & Sound (separate row)
+    st.markdown("**Sprache & Sound**")
+    d1, d2 = st.columns(2)
+
+    with d1:
+        has_dialogue = st.checkbox("🎤 Model spricht (Lip Sync)", value=False)
+        if has_dialogue:
+            dialogue_text = st.text_area("Was sagt das Model?",
+                                         placeholder='z.B. "This is the one piece you need this summer."',
+                                         height=80)
+            voice_tone = st.selectbox("Stimme / Ton", [
+                "Soft & whispery (ASMR-like)",
+                "Confident & clear",
+                "Warm & friendly",
+                "Seductive & low",
+                "Energetic & upbeat",
+                "Cool & casual"
+            ])
+        else:
+            dialogue_text = ""
+            voice_tone = ""
+
+    with d2:
+        has_ambient = st.checkbox("🔊 Ambient Sound", value=False)
+        if has_ambient:
+            ambient_sound = st.selectbox("Sound-Atmosphäre", [
+                "Soft cinematic music",
+                "City ambient (traffic, people)",
+                "Nature sounds (birds, wind)",
+                "Studio silence with subtle reverb",
+                "Upbeat fashion/commercial beat",
+                "Lo-fi / chill background"
+            ])
+        else:
+            ambient_sound = ""
+
+
 # --- PROMPT BUILD (LOCAL) ---
 def build_prompt_local():
     """Build prompt locally using Jinja2 template — no API needed."""
@@ -423,6 +529,60 @@ def build_prompt_local():
     return prompt, ref_reminder
 
 
+def build_video_prompt(image_prompt):
+    """Extend the image prompt with Veo3 video instructions."""
+
+    # Camera movement mapping
+    cam_map = {
+        "Static (Stativ, Model bewegt sich)": "CAMERA: Locked-off static tripod. All motion comes from the model.",
+        "Slow tracking forward": "CAMERA: Slow, steady forward tracking shot towards the model.",
+        "Slow tracking sideways (Dolly)": "CAMERA: Smooth lateral dolly movement, revealing the model from a new angle.",
+        "360° Orbit around model": "CAMERA: Continuous smooth 360-degree orbit around the model, maintaining center frame.",
+        "Slow zoom in on face": "CAMERA: Very slow, cinematic push-in zoom towards the model's face.",
+        "Crane shot (oben nach unten)": "CAMERA: Crane shot descending from above, revealing the model and scene.",
+        "Handheld (leicht wackelig, authentisch)": "CAMERA: Handheld with subtle natural shake, documentary/authentic feel.",
+    }
+    camera_video_move = cam_map.get(video_cam, "CAMERA: Static tripod.")
+
+    # FPS
+    fps = video_fps.split("fps")[0]
+
+    # Wind
+    has_wind = video_wind != "Kein Wind"
+    wind_type = video_wind if has_wind else ""
+
+    video_prompt = VIDEO_TEMPLATE.render(
+        image_prompt=image_prompt,
+        duration=video_duration,
+        video_ratio=video_ratio,
+        model_action=model_action,
+        action_detail=action_detail if action_detail else "",
+        movement_speed=movement_speed,
+        camera_video_move=camera_video_move,
+        has_wind=has_wind,
+        wind_type=wind_type,
+        has_dialogue=has_dialogue if use_video else False,
+        dialogue_text=dialogue_text if use_video and has_dialogue else "",
+        voice_tone=voice_tone if use_video and has_dialogue else "",
+        has_ambient_sound=has_ambient if use_video else False,
+        ambient_sound=ambient_sound if use_video and has_ambient else "",
+        fps=fps,
+    )
+
+    # Clean up blank lines
+    lines = video_prompt.split("\n")
+    cleaned = []
+    prev_empty = False
+    for line in lines:
+        is_empty = line.strip() == ""
+        if is_empty and prev_empty:
+            continue
+        cleaned.append(line)
+        prev_empty = is_empty
+
+    return "\n".join(cleaned).strip()
+
+
 def polish_with_gpt(raw_prompt, api_key):
     """Optional: refine the template prompt with GPT-4o."""
     from openai import OpenAI
@@ -450,53 +610,69 @@ Do NOT add or remove any specifications — only improve the prose and flow."""
 
 # --- OUTPUT ---
 st.markdown("---")
-if st.button("🍌 PROMPT GENERIEREN"):
+
+# Dynamic button text
+btn_label = "🍌🎬 IMAGE + VIDEO PROMPT GENERIEREN" if use_video else "🍌 PROMPT GENERIEREN"
+
+if st.button(btn_label):
     if not product:
         st.warning("Bitte ein Produkt / Thema eingeben!")
     else:
         with st.spinner("Baue Prompt..."):
             raw_prompt, reminder = build_prompt_local()
 
-        st.success("✅ Prompt generiert (lokal, sofort)!")
+        st.success("✅ Bild-Prompt generiert!")
         if reminder:
             st.info(reminder)
 
         # Show raw template prompt
-        st.markdown("### 📋 Template-Prompt")
+        st.markdown("### 📋 Bild-Prompt")
         st.code(raw_prompt, language="text")
 
+        # VIDEO PROMPT
+        final_video_prompt = None
+        if use_video:
+            with st.spinner("Baue Video-Prompt..."):
+                final_video_prompt = build_video_prompt(raw_prompt)
+            st.success("✅ Veo3 Video-Prompt generiert!")
+            st.markdown("### 🎬 Veo3 Video-Prompt")
+            st.code(final_video_prompt, language="text")
+
         # Optional GPT polish
+        prompt_to_save = raw_prompt
         if use_polish:
             if not api_key:
                 st.warning("⚠️ API Key fehlt für den Polish-Modus!")
             else:
+                polish_target = final_video_prompt if final_video_prompt else raw_prompt
                 with st.spinner("GPT-4o verfeinert..."):
-                    polished = polish_with_gpt(raw_prompt, api_key)
+                    polished = polish_with_gpt(polish_target, api_key)
                 if polished:
                     st.markdown("### ✨ GPT-4o Polished Version")
                     st.code(polished, language="text")
-                    # Save polished version to history
-                    st.session_state.prompt_history.append({
-                        "time": datetime.now().strftime("%H:%M:%S"),
-                        "prompt": polished,
-                    })
-                else:
-                    # Save raw if polish failed
-                    st.session_state.prompt_history.append({
-                        "time": datetime.now().strftime("%H:%M:%S"),
-                        "prompt": raw_prompt,
-                    })
-        else:
-            # Save raw prompt to history
-            st.session_state.prompt_history.append({
-                "time": datetime.now().strftime("%H:%M:%S"),
-                "prompt": raw_prompt,
-            })
+                    prompt_to_save = polished
 
-        # Export button
-        st.download_button(
-            label="💾 Prompt als .txt speichern",
-            data=raw_prompt,
-            file_name=f"nano_banana_prompt_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
-            mime="text/plain"
-        )
+        # Save to history
+        st.session_state.prompt_history.append({
+            "time": datetime.now().strftime("%H:%M:%S"),
+            "prompt": final_video_prompt if final_video_prompt else raw_prompt,
+            "type": "🎬 Video" if use_video else "📷 Bild",
+        })
+
+        # Export buttons
+        ex1, ex2 = st.columns(2)
+        with ex1:
+            st.download_button(
+                label="💾 Bild-Prompt speichern (.txt)",
+                data=raw_prompt,
+                file_name=f"nano_banana_image_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+                mime="text/plain"
+            )
+        with ex2:
+            if final_video_prompt:
+                st.download_button(
+                    label="🎬 Video-Prompt speichern (.txt)",
+                    data=final_video_prompt,
+                    file_name=f"nano_banana_veo3_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+                    mime="text/plain"
+                )
