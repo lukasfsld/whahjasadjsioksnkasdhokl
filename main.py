@@ -1025,7 +1025,353 @@ if use_product_only:
         prod_negative = ", ".join(prod_neg_parts) if prod_neg_parts else ""
 
 
-# --- PROMPT BUILD (LOCAL) ---
+# --- 7. AD CREATIVE GENERATOR ---
+st.markdown("---")
+st.markdown('<div class="section-card"><h3>🎯 Ad Creative Generator — Facebook & Instagram Ads</h3></div>', unsafe_allow_html=True)
+use_ad_creative = st.checkbox("Ad Creative Modus aktivieren", value=False,
+                              help="Generiert fertige Werbe-Creatives für Facebook & Instagram Ads mit Text-Overlay, CTA und Zielgruppen-Optimierung.")
+
+if use_ad_creative:
+    st.markdown("---")
+
+    ad1, ad2 = st.columns(2)
+
+    with ad1:
+        st.markdown("**🎨 Ad-Typ & Stil**")
+        ad_type = st.selectbox("Werbe-Typ", [
+            "💛 Emotional / Storytelling",
+            "⭐ Social Proof / Testimonial",
+            "🔥 Urgency / Limited Offer",
+            "✨ Lifestyle / Aspirational",
+            "💎 Product Hero / Close-Up",
+            "🎁 Geschenk-Guide",
+            "📖 Educational / Craftsmanship",
+        ], help="Der Werbe-Typ bestimmt Bildstil, Textton und Komposition.")
+
+        ad_mood = st.selectbox("Stimmung / Mood", [
+            "Warm & Einladend",
+            "Luxuriös & Elegant",
+            "Jung & Trendig",
+            "Romantisch & Verträumt",
+            "Bold & Selbstbewusst",
+            "Minimalistisch & Clean",
+            "Festlich / Saisonal",
+        ])
+
+        ad_format = st.selectbox("Ad Format", [
+            "Facebook Feed (1:1 Quadrat)",
+            "Facebook Feed (4:5 Hochformat)",
+            "Instagram Story / Reels (9:16)",
+            "Facebook Cover / Banner (16:9)",
+            "Carousel Einzelbild (1:1)",
+        ])
+
+        is_personalizable = st.checkbox("🏷️ Produkt ist personalisierbar", value=True,
+                                        help="Wenn aktiviert, wird 'Personalisierbar' als Selling Point eingebaut.")
+
+    with ad2:
+        st.markdown("**👥 Zielgruppe**")
+        ad_target = st.selectbox("Primäre Zielgruppe", [
+            "👩 Frauen 18-24 (Trend & Self-Treat)",
+            "👩 Frauen 25-34 (Lifestyle & Everyday Luxury)",
+            "👩 Frauen 35-50 (Eleganz & Qualität)",
+            "👨 Männer (Geschenk für Partnerin)",
+            "💍 Verlobung / Hochzeit",
+            "🎁 Muttertag / Valentinstag / Weihnachten",
+            "🎓 Abschluss / Milestone-Geschenk",
+            "👫 Paare (Matching / Partnergeschenk)",
+        ])
+
+        ad_season = st.selectbox("Saison / Anlass (optional)", [
+            "— Kein spezifischer Anlass —",
+            "💝 Valentinstag",
+            "🌸 Muttertag",
+            "🎄 Weihnachten",
+            "🎃 Black Friday / Cyber Monday",
+            "☀️ Sommer / Festival",
+            "🍂 Herbst / Back to School",
+            "💍 Hochzeitssaison",
+            "🎆 Neujahr",
+        ])
+
+        ad_price_point = st.selectbox("Preis-Segment", [
+            "💰 Budget-friendly (unter 50€)",
+            "💎 Mid-range (50-150€)",
+            "👑 Premium / Luxury (150€+)",
+        ])
+
+    st.markdown("---")
+    ad3, ad4 = st.columns(2)
+
+    with ad3:
+        st.markdown("**📝 Text-Overlay auf dem Bild**")
+        ad_headline = st.text_input("Headline (Haupttext auf dem Bild)",
+                                    placeholder="z.B. Dein Name. Dein Style.",
+                                    key="ad_headline",
+                                    help="Kurz & knackig. Wird prominent auf dem Bild platziert.")
+        ad_subline = st.text_input("Subline (optional)",
+                                   placeholder="z.B. Handgefertigt. Einzigartig wie du.",
+                                   key="ad_subline")
+        ad_cta = st.selectbox("Call-to-Action", [
+            "Jetzt entdecken →",
+            "Shop Now →",
+            "Jetzt bestellen",
+            "Sichere dir deins",
+            "Zum Shop →",
+            "Gratis Versand sichern",
+            "Jetzt personalisieren",
+            "Nur noch heute!",
+            "Custom...",
+        ])
+        if ad_cta == "Custom...":
+            ad_cta = st.text_input("Eigener CTA", placeholder="z.B. Jetzt -20% sichern",
+                                   key="ad_cta_custom")
+
+        ad_offer = st.text_input("Angebot / Rabatt (optional)",
+                                 placeholder="z.B. -20% mit Code LOVE20, Gratis Versand ab 50€",
+                                 key="ad_offer")
+
+    with ad4:
+        st.markdown("**📸 Bild-Komposition**")
+        ad_composition = st.selectbox("Layout", [
+            "Close-Up Produkt + Text oben/unten",
+            "Model trägt Produkt + Text-Overlay",
+            "Split: Links Model, Rechts Produkt-Detail",
+            "Lifestyle-Szene + dezenter Text",
+            "Produkt auf Hintergrund + große Headline",
+            "Vorher/Nachher (ohne/mit Schmuck)",
+        ])
+
+        ad_text_position = st.selectbox("Text-Position", [
+            "Oben (über dem Bild)",
+            "Unten (unter dem Produkt)",
+            "Mittig (Overlay auf Bild)",
+            "Links (Text links, Bild rechts)",
+            "Minimal (nur kleiner CTA-Button)",
+        ])
+
+        ad_color_scheme = st.selectbox("Farbschema", [
+            "Brand Gold (#FFD700 auf Dunkel)",
+            "Weiß & Clean (heller Hintergrund)",
+            "Schwarz & Luxus (dunkler Hintergrund)",
+            "Rosé / Pastelltöne",
+            "Natur / Erdtöne",
+            "Kräftige Farben (Pop Art Style)",
+        ])
+
+        ad_ref_files = st.file_uploader(
+            "Produkt-Referenzbilder für Ad (max. 4)",
+            type=["png", "jpg", "jpeg", "webp"],
+            accept_multiple_files=True,
+            key="ad_ref_upload"
+        )
+        if ad_ref_files and len(ad_ref_files) > 4:
+            st.warning("Maximal 4 Bilder!")
+            ad_ref_files = ad_ref_files[:4]
+
+
+# --- AD CREATIVE PROMPT BUILDER ---
+def build_ad_creative_prompt():
+    """Build a prompt for generating Facebook/Instagram Ad Creatives."""
+
+    # Map ad format to aspect ratio
+    format_map = {
+        "Facebook Feed (1:1 Quadrat)": "1:1 (Square)",
+        "Facebook Feed (4:5 Hochformat)": "4:5 (Portrait)",
+        "Instagram Story / Reels (9:16)": "9:16 (Vertical / Full Screen)",
+        "Facebook Cover / Banner (16:9)": "16:9 (Landscape / Banner)",
+        "Carousel Einzelbild (1:1)": "1:1 (Square)",
+    }
+    ad_ar = format_map.get(ad_format, "1:1 (Square)")
+
+    # Map ad type to visual style instructions
+    type_instructions = {
+        "💛 Emotional / Storytelling": (
+            "VISUAL STYLE: Warm, cinematic storytelling. Show a genuine emotional moment — "
+            "a woman touching her necklace while looking in the mirror, receiving the jewelry as a gift, "
+            "or a candid moment of joy. The image should evoke FEELING, not just show a product. "
+            "Soft, warm lighting. Golden hour tones. Slightly shallow depth of field for dreamy quality."
+        ),
+        "⭐ Social Proof / Testimonial": (
+            "VISUAL STYLE: Authentic, relatable look. Show a real-looking woman wearing the jewelry "
+            "in an everyday setting — coffee shop, living room, walking outside. Natural lighting, "
+            "slightly less polished than editorial — should feel like a real customer photo or UGC (user-generated content). "
+            "Warm and approachable, not overly styled."
+        ),
+        "🔥 Urgency / Limited Offer": (
+            "VISUAL STYLE: High-impact, attention-grabbing. Bold composition with the product prominently displayed. "
+            "Dynamic lighting with strong contrast. The image should feel URGENT and exciting. "
+            "Clean background so text overlay is readable. Studio-quality product shot with dramatic lighting."
+        ),
+        "✨ Lifestyle / Aspirational": (
+            "VISUAL STYLE: Aspirational lifestyle imagery. Beautiful model in a luxurious or desirable setting — "
+            "rooftop, designer apartment, sun-drenched terrace, elegant restaurant. The jewelry is part of a "
+            "complete aspirational look. Fashion-editorial quality. Rich colors, perfect styling."
+        ),
+        "💎 Product Hero / Close-Up": (
+            "VISUAL STYLE: Product is the absolute hero. Extreme close-up or macro shot of the jewelry. "
+            "Every detail visible — metal texture, engraving, gemstone facets, chain links. "
+            "Clean, minimal background. Professional product photography with perfect lighting. "
+            "The product should fill 60-70% of the frame."
+        ),
+        "🎁 Geschenk-Guide": (
+            "VISUAL STYLE: Gift-giving scene. Show the jewelry in beautiful packaging — gift box, "
+            "ribbon, tissue paper. Or a moment of gifting — hands opening a box, surprise expression. "
+            "Warm, festive lighting. Should trigger the emotion of GIVING and RECEIVING a special gift."
+        ),
+        "📖 Educational / Craftsmanship": (
+            "VISUAL STYLE: Behind-the-scenes, artisan quality focus. Close-up of the jewelry showing "
+            "craftsmanship details — handmade texture, hallmarks, material quality. "
+            "Clean, informational composition that highlights QUALITY and CRAFTSMANSHIP. "
+            "Studio lighting that reveals every detail of the material and workmanship."
+        ),
+    }
+    style_instr = type_instructions.get(ad_type, type_instructions["✨ Lifestyle / Aspirational"])
+
+    # Map mood
+    mood_map = {
+        "Warm & Einladend": "COLOR MOOD: Warm golden tones, honey-colored lighting, cozy and inviting atmosphere.",
+        "Luxuriös & Elegant": "COLOR MOOD: Rich, deep tones. Black, gold, champagne. Luxury feel with high contrast.",
+        "Jung & Trendig": "COLOR MOOD: Fresh, vibrant. Bright natural light, clean whites, pops of color. Modern and youthful.",
+        "Romantisch & Verträumt": "COLOR MOOD: Soft pastels, rose tones, dreamy bokeh. Gentle, ethereal quality.",
+        "Bold & Selbstbewusst": "COLOR MOOD: Strong contrast, saturated colors, powerful lighting. Confident and bold.",
+        "Minimalistisch & Clean": "COLOR MOOD: Neutral tones, lots of whitespace, minimal distractions. Ultra-clean aesthetic.",
+        "Festlich / Saisonal": "COLOR MOOD: Festive atmosphere — sparkle, warmth, celebration. Rich reds, golds, greens depending on season.",
+    }
+    mood_instr = mood_map.get(ad_mood, "")
+
+    # Map target audience to model/scene description
+    target_map = {
+        "👩 Frauen 18-24 (Trend & Self-Treat)": "MODEL: Young woman, early 20s, trendy and confident. Casual-chic styling. Relatable, not overly glamorous.",
+        "👩 Frauen 25-34 (Lifestyle & Everyday Luxury)": "MODEL: Woman in her late 20s to early 30s. Stylish, put-together but natural. Modern professional or lifestyle setting.",
+        "👩 Frauen 35-50 (Eleganz & Qualität)": "MODEL: Elegant woman in her late 30s to 40s. Sophisticated, timeless styling. Quality and refinement are key.",
+        "👨 Männer (Geschenk für Partnerin)": "SCENE: Focus on the gift-giving moment — hands holding a jewelry box, or the jewelry beautifully presented as a gift. Masculine hands opening/presenting. Warm, romantic lighting.",
+        "💍 Verlobung / Hochzeit": "SCENE: Romantic, wedding-adjacent setting. White, gold, floral elements. Dreamy, fairy-tale quality. Focus on rings or bridal jewelry.",
+        "🎁 Muttertag / Valentinstag / Weihnachten": "SCENE: Gift-giving moment appropriate for the occasion. Festive elements, warm family/romantic atmosphere. Emotional resonance.",
+        "🎓 Abschluss / Milestone-Geschenk": "SCENE: Celebration moment. Young woman wearing the jewelry proudly. Achievement, pride, new chapter feeling.",
+        "👫 Paare (Matching / Partnergeschenk)": "SCENE: Two people, romantic setting. Focus on matching or complementary jewelry pieces. Connection and togetherness.",
+    }
+    target_instr = target_map.get(ad_target, "")
+
+    # Composition instructions
+    comp_map = {
+        "Close-Up Produkt + Text oben/unten": "COMPOSITION: Tight close-up of the jewelry product filling the center of the frame. Leave clear space at top and bottom for text overlay. Clean, uncluttered background.",
+        "Model trägt Produkt + Text-Overlay": "COMPOSITION: Medium shot of model wearing the jewelry. Product clearly visible. Leave breathing room around edges for text overlay. Model slightly off-center.",
+        "Split: Links Model, Rechts Produkt-Detail": "COMPOSITION: Split composition — left half shows the model wearing the jewelry (medium/close-up), right half shows an extreme close-up detail of the product. Visual divide in the middle.",
+        "Lifestyle-Szene + dezenter Text": "COMPOSITION: Wide lifestyle scene with the model and product in a beautiful setting. Text will be small and positioned in a corner. Focus is on the aspirational image.",
+        "Produkt auf Hintergrund + große Headline": "COMPOSITION: Product floating or placed on a clean background. Lots of negative space for large headline text. Product is centered, background is simple and elegant.",
+        "Vorher/Nachher (ohne/mit Schmuck)": "COMPOSITION: Side-by-side or before/after style — left shows a bare neckline/wrist, right shows the same with the jewelry. Transformation and enhancement feel.",
+    }
+    comp_instr = comp_map.get(ad_composition, "")
+
+    # Text overlay instructions
+    text_elements = []
+    if ad_headline:
+        text_elements.append(f'HEADLINE TEXT ON IMAGE: "{ad_headline}"')
+    if ad_subline:
+        text_elements.append(f'SUBLINE TEXT: "{ad_subline}"')
+    if ad_cta:
+        text_elements.append(f'CTA BUTTON/TEXT: "{ad_cta}"')
+    if ad_offer:
+        text_elements.append(f'OFFER BADGE: "{ad_offer}"')
+
+    # Personalization hint
+    personalization_instr = ""
+    if is_personalizable:
+        personalization_instr = (
+            "\nPERSONALIZATION SELLING POINT: This product is PERSONALIZABLE. "
+            "Show or suggest personalization — e.g. a name engraved on the pendant, initials, custom text. "
+            "If text is shown on the jewelry, use an example name like 'EMMA' or 'MIA'. "
+            "Make it clear visually that this piece can be customized to the buyer's preference."
+        )
+
+    # Season/occasion
+    season_instr = ""
+    if ad_season and "Kein" not in ad_season:
+        season_clean = ad_season.split(" ", 1)[1] if " " in ad_season else ad_season
+        season_instr = f"\nSEASONAL CONTEXT: This ad is for {season_clean}. Incorporate subtle seasonal elements in the styling, lighting, or props that evoke this occasion without being heavy-handed."
+
+    # Color scheme
+    color_map = {
+        "Brand Gold (#FFD700 auf Dunkel)": "COLOR SCHEME: Dark background (near-black or deep navy), gold accent elements. Luxury and premium feel.",
+        "Weiß & Clean (heller Hintergrund)": "COLOR SCHEME: Bright white or light cream background. Clean, airy, modern. Minimal color palette.",
+        "Schwarz & Luxus (dunkler Hintergrund)": "COLOR SCHEME: Deep black background with dramatic lighting on the product. High-end, exclusive feel.",
+        "Rosé / Pastelltöne": "COLOR SCHEME: Soft rose, blush pink, light lavender tones. Feminine, romantic, gentle.",
+        "Natur / Erdtöne": "COLOR SCHEME: Warm earth tones — sand, terracotta, olive, warm brown. Natural, organic feel.",
+        "Kräftige Farben (Pop Art Style)": "COLOR SCHEME: Bold, vibrant colors. High saturation, eye-catching. Modern and edgy.",
+    }
+    color_instr = color_map.get(ad_color_scheme, "")
+
+    # Text position
+    pos_map = {
+        "Oben (über dem Bild)": "TEXT PLACEMENT: Reserve the top 25% of the image for text overlay. Keep this area simpler/darker for readability.",
+        "Unten (unter dem Produkt)": "TEXT PLACEMENT: Reserve the bottom 25% of the image for text overlay. Keep bottom area simpler for readability.",
+        "Mittig (Overlay auf Bild)": "TEXT PLACEMENT: Text will be overlaid in the center of the image. Ensure there's a semi-transparent area or natural dark/light zone for text readability.",
+        "Links (Text links, Bild rechts)": "TEXT PLACEMENT: Left third of image should be simpler/darker for text. Main visual content on the right two-thirds.",
+        "Minimal (nur kleiner CTA-Button)": "TEXT PLACEMENT: Only a small CTA button in the bottom-right corner. The image itself does all the talking.",
+    }
+    pos_instr = pos_map.get(ad_text_position, "")
+
+    # Price segment styling
+    price_map = {
+        "💰 Budget-friendly (unter 50€)": "PRICE POSITIONING: Accessible, everyday luxury. Emphasize value and versatility. Approachable styling.",
+        "💎 Mid-range (50-150€)": "PRICE POSITIONING: Quality meets style. Premium feel but still relatable. Everyday elegance.",
+        "👑 Premium / Luxury (150€+)": "PRICE POSITIONING: High-end luxury. Exclusive, aspirational. Every element screams quality and craftsmanship.",
+    }
+    price_instr = price_map.get(ad_price_point, "")
+
+    # Build the full prompt
+    prompt = f"""FACEBOOK / INSTAGRAM AD CREATIVE — {ad_ar}
+
+PURPOSE: This is a paid advertising creative for Facebook/Instagram. It must STOP THE SCROLL — grab attention within 0.5 seconds in a fast-moving feed.
+
+PRODUCT: '{product}'
+{target_instr}
+
+{style_instr}
+
+{mood_instr}
+
+{comp_instr}
+{pos_instr}
+
+{color_instr}
+{price_instr}
+{personalization_instr}
+{season_instr}
+
+SKIN: Realistic skin with natural texture, visible pores, subtle imperfections. NO airbrushed, plastic, or CGI-looking skin.
+
+{"TEXT ELEMENTS TO INCLUDE IN THE IMAGE:" if text_elements else ""}
+{chr(10).join(text_elements)}
+{"Render the text clearly and legibly using a clean, modern sans-serif font. Text must be HIGH CONTRAST against the background and easily readable at small sizes (mobile phone viewing)." if text_elements else ""}
+
+AD CREATIVE REQUIREMENTS:
+- The image must work as a standalone ad — it should communicate the product and value proposition visually
+- Mobile-first: design for small screens, large clear visuals
+- The product (jewelry) must be clearly visible and desirable
+- Professional advertising quality — this should look like it was produced by a creative agency
+- No generic stock photo feel — make it specific, intentional, and polished
+
+NEGATIVE: no blurry text, no illegible fonts, no cluttered composition, no cheap-looking graphics, no watermarks, no AI-generated artifacts, no deformed hands or fingers
+
+QUALITY: 8K resolution, professional advertising photography, editorial quality, perfect color grading, razor-sharp product detail."""
+
+    # Clean up blank lines
+    lines = prompt.split("\n")
+    cleaned = []
+    prev_empty = False
+    for line in lines:
+        is_empty = line.strip() == ""
+        if is_empty and prev_empty:
+            continue
+        cleaned.append(line)
+        prev_empty = is_empty
+
+    return "\n".join(cleaned).strip()
+
+
+
 def build_prompt_local():
     """Build prompt locally using Jinja2 template — no API needed."""
 
@@ -1988,4 +2334,104 @@ if use_product_only:
 
             if st.button("🗑️ Generierte Product-Bilder löschen"):
                 st.session_state.generated_images = [img for img in st.session_state.generated_images if img["type"] != "product"]
+                st.rerun()
+
+# --- AD CREATIVE BUTTON ---
+if use_ad_creative:
+    st.markdown("---")
+    st.markdown('<div class="section-card"><h3>🎯 Ad Creative generieren</h3></div>', unsafe_allow_html=True)
+
+    if "last_ad_prompt" not in st.session_state:
+        st.session_state.last_ad_prompt = None
+
+    if st.button("🎯 AD CREATIVE PROMPT GENERIEREN"):
+        if not product:
+            st.warning("Bitte ein Produkt / Thema eingeben (im Tab 'Format & Produkt')!")
+        else:
+            with st.spinner("Baue Ad Creative Prompt..."):
+                ad_prompt = build_ad_creative_prompt()
+
+            st.session_state.last_ad_prompt = ad_prompt
+            st.success("✅ Ad Creative Prompt generiert!")
+            st.markdown("### 🎯 Ad Creative Prompt")
+            st.code(ad_prompt, language="text")
+
+            # Save to history
+            st.session_state.prompt_history.append({
+                "time": datetime.now().strftime("%H:%M:%S"),
+                "prompt": ad_prompt,
+                "type": "🎯 Ad Creative",
+            })
+
+            st.download_button(
+                label="💾 Ad-Prompt speichern (.txt)",
+                data=ad_prompt,
+                file_name=f"nano_banana_ad_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+                mime="text/plain"
+            )
+
+    # --- GENERATE AD IMAGE WITH GEMINI ---
+    if st.session_state.get("last_ad_prompt"):
+        st.markdown("---")
+        st.markdown("### 🎨 Ad Creative mit Gemini generieren")
+
+        ag1, ag2 = st.columns([2, 1])
+        with ag2:
+            num_ad_images = st.selectbox("Anzahl Varianten", [1, 2, 3, 4], index=1, key="num_img_ad",
+                                         help="Generiere mehrere Varianten zum A/B-Testen!")
+
+        with ag1:
+            if not gemini_key:
+                st.warning("⚠️ Gemini API Key fehlt!")
+
+            if st.button("🚀 AD CREATIVE JETZT ERSTELLEN", disabled=not gemini_key):
+                ad_refs = ad_ref_files if use_ad_creative and ad_ref_files else None
+                if ad_refs:
+                    st.info(f"📸 {len(ad_refs)} Referenzbild(er) werden mitgesendet...")
+
+                # Map ad format to aspect ratio string for Gemini
+                ad_ar_map = {
+                    "Facebook Feed (1:1 Quadrat)": "1:1",
+                    "Facebook Feed (4:5 Hochformat)": "4:5",
+                    "Instagram Story / Reels (9:16)": "9:16",
+                    "Facebook Cover / Banner (16:9)": "16:9",
+                    "Carousel Einzelbild (1:1)": "1:1",
+                }
+                ad_ar_str = ad_ar_map.get(ad_format, "1:1")
+
+                for i in range(num_ad_images):
+                    with st.spinner(f"Gemini generiert Ad Creative {i+1}/{num_ad_images}..."):
+                        img_bytes, mime_type = generate_image_gemini(
+                            st.session_state.last_ad_prompt, gemini_key,
+                            reference_images=ad_refs, aspect_ratio_str=ad_ar_str,
+                            prefer_pro=("💎 Pro" in model_quality)
+                        )
+                    if img_bytes:
+                        st.session_state.generated_images.append({
+                            "bytes": img_bytes,
+                            "mime": mime_type,
+                            "type": "ad_creative",
+                            "time": datetime.now().strftime("%H:%M:%S"),
+                        })
+
+        # Show ad creative images
+        ad_imgs = [img for img in st.session_state.generated_images if img["type"] == "ad_creative"]
+        if ad_imgs:
+            st.markdown("### 🖼️ Generierte Ad Creatives")
+            st.caption("💡 Tipp: Generiere 3-4 Varianten und teste sie als A/B-Test in Facebook Ads Manager!")
+            cols = st.columns(min(len(ad_imgs), 4))
+            for idx, img in enumerate(ad_imgs):
+                with cols[idx % 4]:
+                    st.image(img["bytes"], caption=f"Ad Creative #{idx+1} — {img['time']}", use_container_width=True)
+                    ext = "png" if "png" in img["mime"] else "jpg"
+                    st.download_button(
+                        label=f"💾 Ad #{idx+1} speichern",
+                        data=img["bytes"],
+                        file_name=f"nano_banana_ad_{idx+1}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{ext}",
+                        mime=img["mime"],
+                        key=f"dl_ad_{idx}_{img['time']}"
+                    )
+
+            if st.button("🗑️ Generierte Ad Creatives löschen"):
+                st.session_state.generated_images = [img for img in st.session_state.generated_images if img["type"] != "ad_creative"]
                 st.rerun()
