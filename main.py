@@ -294,7 +294,25 @@ with k1:
         obj_type, obj_size = None, None
 
     st.markdown("---")
-    wear_product = st.checkbox("Referenz-Bild hochladen?", value=False)
+    wear_product = st.checkbox("📸 Referenzbilder für Produkt hochladen?", value=False,
+                               help="Lade Bilder deines Produkts hoch — werden an Gemini mitgesendet.")
+    if wear_product:
+        campaign_ref_files = st.file_uploader(
+            "Produkt-Referenzbilder (max. 4)",
+            type=["png", "jpg", "jpeg", "webp"],
+            accept_multiple_files=True,
+            key="campaign_ref_upload"
+        )
+        if campaign_ref_files and len(campaign_ref_files) > 4:
+            st.warning("Maximal 4 Bilder!")
+            campaign_ref_files = campaign_ref_files[:4]
+        if campaign_ref_files:
+            ref_preview = st.columns(min(len(campaign_ref_files), 4))
+            for idx, f in enumerate(campaign_ref_files):
+                with ref_preview[idx % 4]:
+                    st.image(f, caption=f"Ref #{idx+1}", use_container_width=True)
+    else:
+        campaign_ref_files = []
 
     st.markdown("---")
     negative_prompt = st.text_area("🚫 Negativ-Prompt (optional)",
@@ -537,9 +555,19 @@ if use_product_only:
         st.markdown("---")
         st.markdown("**📸 Referenzbilder**")
         use_prod_ref = st.checkbox("Referenzbilder verwenden", value=False,
-                                   help="Fügt starke Anweisungen hinzu, das Produkt 1:1 aus deinen Referenzbildern zu übernehmen. Du lädst die Bilder dann direkt in Gemini/Midjourney hoch.")
+                                   help="Lade deine Produktbilder hoch — sie werden direkt an Gemini gesendet.")
         if use_prod_ref:
-            prod_ref_count = st.select_slider("Anzahl Referenzbilder", options=[1, 2, 3, 4], value=2)
+            prod_ref_files = st.file_uploader(
+                "Referenzbilder hochladen (max. 4)",
+                type=["png", "jpg", "jpeg", "webp"],
+                accept_multiple_files=True,
+                key="prod_ref_upload",
+                help="2-4 Bilder deines Produkts aus verschiedenen Winkeln."
+            )
+            if prod_ref_files and len(prod_ref_files) > 4:
+                st.warning("Maximal 4 Bilder! Nur die ersten 4 werden verwendet.")
+                prod_ref_files = prod_ref_files[:4]
+
             prod_ref_angles = st.multiselect("Welche Ansichten zeigen deine Bilder?", [
                 "Front view",
                 "Side view",
@@ -548,8 +576,19 @@ if use_product_only:
                 "Full product overview",
                 "Worn / in use"
             ], default=["Front view", "Close-up detail"])
-            st.info(f"⚠️ Lade deine {prod_ref_count} Referenzbilder direkt in Gemini / Midjourney hoch zusammen mit dem Prompt!")
+
+            # Preview uploaded images
+            if prod_ref_files:
+                st.markdown(f"**{len(prod_ref_files)} Bild(er) hochgeladen:**")
+                preview_cols = st.columns(min(len(prod_ref_files), 4))
+                for idx, f in enumerate(prod_ref_files):
+                    with preview_cols[idx % 4]:
+                        st.image(f, caption=f"Ref #{idx+1}", use_container_width=True)
+                prod_ref_count = len(prod_ref_files)
+            else:
+                prod_ref_count = 0
         else:
+            prod_ref_files = []
             prod_ref_count = 0
             prod_ref_angles = []
 
@@ -1059,8 +1098,8 @@ def find_gemini_image_model(gemini_api_key):
         return None
 
 
-def generate_image_gemini(prompt_text, gemini_api_key):
-    """Generate an image using Gemini (auto-detects best model)."""
+def generate_image_gemini(prompt_text, gemini_api_key, reference_images=None):
+    """Generate an image using Gemini (auto-detects best model). Supports reference images."""
 
     # Find correct model
     if "gemini_model_name" not in st.session_state or not st.session_state.gemini_model_name:
@@ -1075,11 +1114,33 @@ def generate_image_gemini(prompt_text, gemini_api_key):
     model = st.session_state.gemini_model_name
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={gemini_api_key}"
 
+    # Build parts: text prompt + reference images
+    parts = [{"text": prompt_text}]
+
+    if reference_images:
+        for ref_img in reference_images:
+            img_bytes = ref_img.getvalue()
+            img_b64 = base64.b64encode(img_bytes).decode("utf-8")
+
+            # Detect mime type
+            fname = ref_img.name.lower()
+            if fname.endswith(".png"):
+                mime = "image/png"
+            elif fname.endswith(".webp"):
+                mime = "image/webp"
+            else:
+                mime = "image/jpeg"
+
+            parts.append({
+                "inlineData": {
+                    "mimeType": mime,
+                    "data": img_b64
+                }
+            })
+
     payload = {
         "contents": [{
-            "parts": [{
-                "text": prompt_text
-            }]
+            "parts": parts
         }],
         "generationConfig": {
             "responseModalities": ["IMAGE", "TEXT"],
@@ -1089,7 +1150,7 @@ def generate_image_gemini(prompt_text, gemini_api_key):
     headers = {"Content-Type": "application/json"}
 
     try:
-        response = requests.post(url, json=payload, headers=headers, timeout=120)
+        response = requests.post(url, json=payload, headers=headers, timeout=180)
         response.raise_for_status()
         data = response.json()
 
@@ -1097,8 +1158,8 @@ def generate_image_gemini(prompt_text, gemini_api_key):
         candidates = data.get("candidates", [])
         for candidate in candidates:
             content = candidate.get("content", {})
-            parts = content.get("parts", [])
-            for part in parts:
+            parts_resp = content.get("parts", [])
+            for part in parts_resp:
                 if "inlineData" in part:
                     img_data = part["inlineData"]["data"]
                     mime_type = part["inlineData"].get("mimeType", "image/png")
@@ -1126,7 +1187,6 @@ def generate_image_gemini(prompt_text, gemini_api_key):
             error_detail = e.response.json().get("error", {}).get("message", "")
         except:
             pass
-        # If model not found, reset cache and try again
         if e.response.status_code == 404:
             st.session_state.gemini_model_name = None
             st.error(f"Modell '{model}' nicht verfügbar. Bitte nochmal klicken – suche alternatives Modell.")
@@ -1230,10 +1290,14 @@ if st.session_state.last_image_prompt:
             st.warning("⚠️ Gemini API Key fehlt! Füge ihn in der Sidebar oder in Streamlit Secrets hinzu.")
         
         if st.button("🚀 JETZT ERSTELLEN MIT GEMINI", disabled=not gemini_key):
+            # Collect campaign reference images if any
+            ref_imgs = campaign_ref_files if wear_product and campaign_ref_files else None
+            if ref_imgs:
+                st.info(f"📸 {len(ref_imgs)} Referenzbild(er) werden mitgesendet...")
             for i in range(num_images):
                 with st.spinner(f"Gemini generiert Bild {i+1}/{num_images}... (kann 30-60 Sek. dauern)"):
                     img_bytes, mime_type = generate_image_gemini(
-                        st.session_state.last_image_prompt, gemini_key
+                        st.session_state.last_image_prompt, gemini_key, reference_images=ref_imgs
                     )
                 if img_bytes:
                     st.session_state.generated_images.append({
@@ -1317,10 +1381,14 @@ if use_product_only:
                 st.warning("⚠️ Gemini API Key fehlt!")
 
             if st.button("🚀 PRODUCT JETZT ERSTELLEN", disabled=not gemini_key):
+                # Collect product reference images if any
+                prod_refs = prod_ref_files if use_prod_ref and prod_ref_files else None
+                if prod_refs:
+                    st.info(f"📸 {len(prod_refs)} Referenzbild(er) werden mitgesendet...")
                 for i in range(num_prod_images):
                     with st.spinner(f"Gemini generiert Product-Bild {i+1}/{num_prod_images}..."):
                         img_bytes, mime_type = generate_image_gemini(
-                            st.session_state.last_product_prompt, gemini_key
+                            st.session_state.last_product_prompt, gemini_key, reference_images=prod_refs
                         )
                     if img_bytes:
                         st.session_state.generated_images.append({
