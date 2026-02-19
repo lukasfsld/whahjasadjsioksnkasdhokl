@@ -1192,7 +1192,9 @@ PHOTOGRAPHY REALISM:
 - Depth of field with realistic bokeh circles in out-of-focus areas
 - Color science matching real camera output (not oversaturated AI look)
 
-THIS IMAGE MUST BE INDISTINGUISHABLE FROM A REAL PHOTOGRAPH TAKEN BY A PROFESSIONAL PHOTOGRAPHER WITH A HIGH-END DSLR CAMERA."""
+THIS IMAGE MUST BE INDISTINGUISHABLE FROM A REAL PHOTOGRAPH TAKEN BY A PROFESSIONAL PHOTOGRAPHER WITH A HIGH-END DSLR CAMERA.
+
+IMPORTANT: These realism instructions apply to skin, eyes, hair, and photographic quality ONLY. Do NOT change the size, scale, or proportions of any product or object described above. Keep all products at their specified or realistic size."""
         prompt += ultra_block
 
     # Clean up extra blank lines
@@ -1455,13 +1457,13 @@ def generate_image_gemini(prompt_text, gemini_api_key, reference_images=None, as
     model = st.session_state.gemini_model_name
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={gemini_api_key}"
 
-    # Add sharpness boost to prompt
+    # Add sharpness boost to prompt — but preserve product proportions
     quality_boost = (
-        "\n\nIMPORTANT QUALITY INSTRUCTIONS: Generate at MAXIMUM available resolution. "
-        "The image must be tack-sharp with extreme detail when zoomed in. "
-        "Razor-sharp focus, no blur, no softness, no compression artifacts. "
-        "Every texture, pore, fabric thread, and material grain must be crisply rendered. "
-        "Professional retouching quality with pixel-perfect sharpness throughout the entire frame."
+        "\n\nQUALITY INSTRUCTIONS: Generate at maximum available resolution. "
+        "Sharp focus, no blur, no compression artifacts. "
+        "Professional retouching quality with pixel-perfect sharpness. "
+        "CRITICAL: Maintain all specified product sizes and proportions exactly as described in the prompt. "
+        "Do NOT enlarge or exaggerate any objects. Keep the composition and scale faithful to the instructions above."
     )
     enhanced_prompt = prompt_text + quality_boost
 
