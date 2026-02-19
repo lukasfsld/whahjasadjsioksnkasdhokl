@@ -1452,12 +1452,16 @@ def generate_image_gemini(prompt_text, gemini_api_key, reference_images=None, as
 
 
 def generate_video_veo(prompt_text, gemini_api_key):
-    """Generate a video using Veo 3 via the Gemini API. Returns video bytes or None."""
+    """Generate a video using Veo via the Gemini API. Returns video bytes or None."""
     import time as _time
 
     BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
+    headers = {
+        "Content-Type": "application/json",
+        "x-goog-api-key": gemini_api_key,
+    }
 
-    # Try Veo models in order of preference
+    # Try Veo models in order
     veo_models = [
         "veo-3.0-generate-preview",
         "veo-3.1-generate-preview",
@@ -1469,107 +1473,128 @@ def generate_video_veo(prompt_text, gemini_api_key):
 
     for model in veo_models:
         url = f"{BASE_URL}/models/{model}:predictLongRunning"
-        headers = {
-            "Content-Type": "application/json",
-            "x-goog-api-key": gemini_api_key,
-        }
         payload = {
-            "instances": [{
-                "prompt": prompt_text
-            }]
+            "instances": [{"prompt": prompt_text}],
+            "parameters": {
+                "personGeneration": "allow_all",
+                "generateAudio": True,
+            }
         }
 
         try:
             resp = requests.post(url, json=payload, headers=headers, timeout=60)
             if resp.status_code == 404:
-                continue  # Try next model
+                continue
+            if resp.status_code == 503:
+                continue
             resp.raise_for_status()
             data = resp.json()
             operation_name = data.get("name")
             used_model = model
             break
         except requests.exceptions.HTTPError as e:
-            if e.response.status_code == 404:
+            if e.response.status_code in [404, 503]:
                 continue
-            elif e.response.status_code == 503:
-                continue  # Model busy, try next
-            elif e.response.status_code == 429:
-                error_detail = ""
-                try:
-                    error_detail = e.response.json().get("error", {}).get("message", "")
-                except:
-                    pass
-                st.error(f"Veo Quota überschritten. {error_detail}")
-                return None
-            else:
-                error_detail = ""
-                try:
-                    error_detail = e.response.json().get("error", {}).get("message", "")
-                except:
-                    pass
-                st.error(f"Veo API Fehler ({model}): {e}\n{error_detail}")
-                return None
-        except Exception as e:
+            error_detail = ""
+            try:
+                error_detail = e.response.json().get("error", {}).get("message", "")
+            except:
+                pass
+            st.error(f"Veo API Fehler ({model}): {e}\n{error_detail}")
+            return None
+        except Exception:
             continue
 
     if not operation_name:
-        st.error("❌ Kein Veo-Modell verfügbar. Prüfe deinen API Key und ob Billing aktiviert ist.")
+        st.error("❌ Kein Veo-Modell verfügbar. Prüfe API Key und Billing.")
         return None
 
-    st.info(f"🤖 Verwende Veo-Modell: **{used_model}**")
+    st.info(f"🤖 Verwende: **{used_model}** — Operation: `{operation_name}`")
 
-    # Poll for completion
-    poll_url = f"{BASE_URL}/{operation_name}"
+    # Poll for completion — use x-goog-api-key header
     poll_headers = {"x-goog-api-key": gemini_api_key}
+    poll_url = f"{BASE_URL}/{operation_name}"
 
-    progress_bar = st.progress(0, text="Video wird generiert...")
-    max_wait = 300  # 5 minutes max
+    progress_bar = st.progress(0, text="⏳ Video wird generiert...")
+    status_text = st.empty()
+    max_wait = 600  # 10 minutes
     elapsed = 0
-    poll_interval = 5
+    poll_interval = 10
 
     while elapsed < max_wait:
         _time.sleep(poll_interval)
         elapsed += poll_interval
-        progress_bar.progress(min(elapsed / max_wait, 0.95), text=f"Video wird generiert... ({elapsed}s)")
+        pct = min(elapsed / max_wait, 0.95)
+        progress_bar.progress(pct, text=f"⏳ Video wird generiert... ({elapsed}s / max {max_wait}s)")
 
         try:
             poll_resp = requests.get(poll_url, headers=poll_headers, timeout=30)
             poll_resp.raise_for_status()
             poll_data = poll_resp.json()
 
-            if poll_data.get("done"):
+            is_done = poll_data.get("done", False)
+            status_text.caption(f"Status: done={is_done} | Keys: {list(poll_data.keys())}")
+
+            if is_done:
                 progress_bar.progress(1.0, text="✅ Video fertig!")
 
-                # Extract video
-                response_data = poll_data.get("response", {})
-                videos = response_data.get("generateVideoResponse", {}).get("generatedSamples", [])
+                # Extract video from response
+                response_obj = poll_data.get("response", {})
 
-                if not videos:
-                    # Try alternate response structure
-                    videos = response_data.get("generatedSamples", [])
+                # Try multiple known response structures
+                video_samples = None
 
-                if videos:
-                    video_info = videos[0].get("video", {})
-                    # Video might be base64 encoded or a URI
-                    if "bytesBase64Encoded" in video_info:
-                        video_bytes = base64.b64decode(video_info["bytesBase64Encoded"])
+                # Structure 1: response.generateVideoResponse.generatedSamples
+                gvr = response_obj.get("generateVideoResponse", {})
+                if gvr:
+                    video_samples = gvr.get("generatedSamples", [])
+
+                # Structure 2: response.generatedSamples
+                if not video_samples:
+                    video_samples = response_obj.get("generatedSamples", [])
+
+                # Structure 3: response.videos (Vertex style)
+                if not video_samples:
+                    video_samples = response_obj.get("videos", [])
+
+                if video_samples:
+                    sample = video_samples[0]
+                    video_obj = sample.get("video", sample)
+
+                    # Base64 encoded
+                    if "bytesBase64Encoded" in video_obj:
+                        video_bytes = base64.b64decode(video_obj["bytesBase64Encoded"])
                         return video_bytes
-                    elif "uri" in video_info:
-                        # Download from URI
-                        video_url = video_info["uri"]
-                        vid_resp = requests.get(video_url, timeout=120)
+
+                    # URI to download
+                    uri = video_obj.get("uri") or video_obj.get("gcsUri")
+                    if uri:
+                        status_text.caption(f"Downloading video from: {uri[:80]}...")
+                        vid_resp = requests.get(uri, timeout=120)
                         vid_resp.raise_for_status()
                         return vid_resp.content
 
-                st.error("Video generiert, aber kein Download möglich. Prüfe die API-Antwort.")
+                # Debug: show full response structure
+                st.warning(f"Video fertig, aber unbekanntes Format. Response-Keys: {list(response_obj.keys())}")
+                st.json(poll_data)
                 return None
 
+            # Check for error in response
+            if "error" in poll_data:
+                err = poll_data["error"]
+                st.error(f"Veo Fehler: {err.get('message', str(err))}")
+                progress_bar.progress(1.0, text="❌ Fehler")
+                return None
+
+        except requests.exceptions.HTTPError as e:
+            status_text.caption(f"Poll-Fehler ({elapsed}s): {e} — versuche weiter...")
+            continue
         except Exception as e:
-            # Continue polling on transient errors
+            status_text.caption(f"Poll-Fehler ({elapsed}s): {e} — versuche weiter...")
             continue
 
     progress_bar.progress(1.0, text="⏰ Timeout")
-    st.error("Video-Generierung hat zu lange gedauert (>5 Min). Bitte nochmal versuchen.")
+    st.error("Video-Generierung hat zu lange gedauert (>10 Min). Das kann bei hoher Nachfrage passieren. Bitte nochmal versuchen.")
     return None
 
 
