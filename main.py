@@ -520,6 +520,25 @@ if use_product_only:
         prod_size_text = st.text_input("Größe (optional)", placeholder="z.B. 45cm Kette, Anhänger 1.5cm",
                                        key="prod_only_size")
 
+        st.markdown("---")
+        st.markdown("**📸 Referenzbilder**")
+        use_prod_ref = st.checkbox("Referenzbilder verwenden", value=False,
+                                   help="Fügt starke Anweisungen hinzu, das Produkt 1:1 aus deinen Referenzbildern zu übernehmen. Du lädst die Bilder dann direkt in Gemini/Midjourney hoch.")
+        if use_prod_ref:
+            prod_ref_count = st.select_slider("Anzahl Referenzbilder", options=[1, 2, 3, 4], value=2)
+            prod_ref_angles = st.multiselect("Welche Ansichten zeigen deine Bilder?", [
+                "Front view",
+                "Side view",
+                "Back view",
+                "Close-up detail",
+                "Full product overview",
+                "Worn / in use"
+            ], default=["Front view", "Close-up detail"])
+            st.info(f"⚠️ Lade deine {prod_ref_count} Referenzbilder direkt in Gemini / Midjourney hoch zusammen mit dem Prompt!")
+        else:
+            prod_ref_count = 0
+            prod_ref_angles = []
+
     with po2:
         st.markdown("**Platzierung & Präsentation**")
         prod_placement = st.selectbox("Wie liegt / schwebt das Produkt?", [
@@ -922,6 +941,9 @@ def build_product_only_prompt():
         prod_description=prod_description if prod_description else "",
         prod_material=prod_material,
         prod_size_info=prod_size_text if prod_size_text else "",
+        has_reference=use_prod_ref,
+        ref_count=prod_ref_count if use_prod_ref else 0,
+        ref_angles=", ".join(prod_ref_angles) if use_prod_ref and prod_ref_angles else "",
         prod_placement=prod_placement,
         placement_detail=placement_detail,
         prod_arrangement=prod_arrangement,
