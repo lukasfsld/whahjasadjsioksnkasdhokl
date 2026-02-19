@@ -38,41 +38,225 @@ if "prompt_history" not in st.session_state:
 # --- CUSTOM CSS ---
 st.markdown("""
     <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+    /* === GLOBAL === */
+    html, body, [class*="css"] {
+        font-family: 'Inter', sans-serif;
+    }
+    div.block-container {
+        padding-top: 1.5rem;
+        padding-bottom: 2rem;
+        max-width: 1200px;
+    }
+
+    /* === HEADER BANNER === */
+    .hero-banner {
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+        border-radius: 16px;
+        padding: 2rem 2.5rem;
+        margin-bottom: 1.5rem;
+        border: 1px solid rgba(255, 215, 0, 0.15);
+        position: relative;
+        overflow: hidden;
+    }
+    .hero-banner::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -20%;
+        width: 300px;
+        height: 300px;
+        background: radial-gradient(circle, rgba(255,215,0,0.08) 0%, transparent 70%);
+        border-radius: 50%;
+    }
+    .hero-banner h1 {
+        color: #FFD700;
+        font-size: 2.2rem;
+        font-weight: 900;
+        margin: 0 0 0.3rem 0;
+        letter-spacing: -0.5px;
+    }
+    .hero-banner p {
+        color: #a0aec0;
+        font-size: 1rem;
+        margin: 0;
+        font-weight: 400;
+    }
+    .hero-banner .version-badge {
+        display: inline-block;
+        background: rgba(255, 215, 0, 0.15);
+        color: #FFD700;
+        padding: 2px 10px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-left: 10px;
+        vertical-align: middle;
+    }
+
+    /* === SECTION CARDS === */
+    .section-card {
+        background: linear-gradient(145deg, #1e1e2e, #252540);
+        border: 1px solid rgba(255, 215, 0, 0.08);
+        border-radius: 12px;
+        padding: 1.2rem 1.5rem;
+        margin-bottom: 1rem;
+    }
+    .section-card h3 {
+        color: #FFD700;
+        font-size: 1.1rem;
+        font-weight: 700;
+        margin: 0 0 0.8rem 0;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid rgba(255, 215, 0, 0.1);
+    }
+
+    /* === BUTTONS === */
     .stButton>button {
         width: 100%;
-        background-color: #FFD700;
-        color: black;
-        border-radius: 8px;
-        padding: 16px;
+        background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+        color: #1a1a2e;
+        border-radius: 10px;
+        padding: 14px 24px;
         font-weight: 800;
-        font-size: 18px;
+        font-size: 16px;
         border: none;
-        margin-top: 20px;
+        margin-top: 12px;
+        letter-spacing: 0.3px;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(255, 215, 0, 0.2);
     }
     .stButton>button:hover {
-        background-color: #E5C100;
-        color: black;
+        background: linear-gradient(135deg, #FFE44D 0%, #FFB833 100%);
+        color: #1a1a2e;
+        box-shadow: 0 6px 20px rgba(255, 215, 0, 0.35);
+        transform: translateY(-1px);
     }
-    h1, h2, h3 { font-family: 'Helvetica', sans-serif; }
-    .stSelectbox, .stTextInput, .stTextArea { margin-bottom: 10px; }
-    div.block-container { padding-top: 2rem; }
-    div[data-testid="stCheckbox"] label span { font-weight: 600; }
-    .prompt-box {
-        background: #1a1a2e;
-        color: #e0e0e0;
-        border-radius: 10px;
-        padding: 20px;
-        font-family: monospace;
+    .stButton>button:active {
+        transform: translateY(0px);
+    }
+
+    /* Download buttons smaller */
+    .stDownloadButton>button {
+        background: linear-gradient(135deg, #2d2d44 0%, #3d3d5c 100%);
+        color: #FFD700;
+        border: 1px solid rgba(255, 215, 0, 0.2);
+        font-size: 13px;
+        padding: 8px 16px;
+        font-weight: 600;
+        box-shadow: none;
+    }
+    .stDownloadButton>button:hover {
+        background: linear-gradient(135deg, #3d3d5c 0%, #4d4d6c 100%);
+        color: #FFE44D;
+        box-shadow: 0 2px 10px rgba(255, 215, 0, 0.15);
+    }
+
+    /* === TABS === */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 4px;
+        background: rgba(26, 26, 46, 0.5);
+        border-radius: 12px;
+        padding: 4px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        border-radius: 8px;
+        padding: 10px 20px;
+        font-weight: 600;
         font-size: 14px;
-        white-space: pre-wrap;
-        border: 1px solid #333;
+    }
+    .stTabs [aria-selected="true"] {
+        background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(255, 165, 0, 0.1));
+        border-bottom-color: #FFD700 !important;
+    }
+
+    /* === FORM ELEMENTS === */
+    .stSelectbox, .stTextInput, .stTextArea { margin-bottom: 6px; }
+
+    .stSelectbox [data-baseweb="select"] > div,
+    .stTextInput > div > div > input,
+    .stTextArea > div > div > textarea {
+        border-color: rgba(255, 215, 0, 0.12);
+        border-radius: 8px;
+    }
+    .stSelectbox [data-baseweb="select"] > div:focus-within,
+    .stTextInput > div > div > input:focus,
+    .stTextArea > div > div > textarea:focus {
+        border-color: rgba(255, 215, 0, 0.4);
+        box-shadow: 0 0 0 1px rgba(255, 215, 0, 0.2);
+    }
+
+    /* === CHECKBOXES === */
+    div[data-testid="stCheckbox"] label span {
+        font-weight: 600;
+    }
+
+    /* === HEADINGS === */
+    h1, h2, h3 { font-family: 'Inter', sans-serif; }
+    h2 { color: #e2e8f0; }
+    h3 { color: #cbd5e0; }
+
+    /* === EXPANDER (History) === */
+    .streamlit-expanderHeader {
+        font-weight: 600;
+        font-size: 13px;
+    }
+
+    /* === METRIC / INFO CARDS === */
+    .stat-row {
+        display: flex;
+        gap: 12px;
+        margin: 1rem 0;
+    }
+    .stat-card {
+        flex: 1;
+        background: rgba(255, 215, 0, 0.05);
+        border: 1px solid rgba(255, 215, 0, 0.1);
+        border-radius: 10px;
+        padding: 12px 16px;
+        text-align: center;
+    }
+    .stat-card .stat-value {
+        color: #FFD700;
+        font-size: 1.4rem;
+        font-weight: 800;
+    }
+    .stat-card .stat-label {
+        color: #718096;
+        font-size: 0.75rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    /* === DIVIDERS === */
+    hr {
+        border-color: rgba(255, 215, 0, 0.08);
+        margin: 1.2rem 0;
+    }
+
+    /* === GENERATED IMAGE GALLERY === */
+    [data-testid="stImage"] {
+        border-radius: 10px;
+        overflow: hidden;
+        border: 1px solid rgba(255, 215, 0, 0.1);
+    }
+
+    /* === SIDEBAR === */
+    section[data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #12121e 0%, #1a1a2e 100%);
+    }
+    section[data-testid="stSidebar"] .stMarkdown h2 {
+        color: #FFD700;
+        font-size: 1rem;
     }
     </style>
 """, unsafe_allow_html=True)
 
 # --- SIDEBAR ---
 with st.sidebar:
-    st.header("🔑 Settings")
+    st.markdown("## 🔑 Settings")
 
     # Gemini API Key (for image generation)
     st.markdown("**🍌 Nano Banana (Gemini)**")
@@ -106,7 +290,7 @@ with st.sidebar:
 
     # --- HISTORY ---
     st.markdown("---")
-    st.header("📜 Prompt-Historie")
+    st.markdown("## 📜 Prompt-Historie")
     if st.session_state.prompt_history:
         for i, entry in enumerate(reversed(st.session_state.prompt_history)):
             etype = entry.get("type", "📷 Bild")
@@ -120,9 +304,12 @@ with st.sidebar:
 
 
 # --- HEADER ---
-st.title("🍌 Nano Banana Campaign Director (V12)")
-st.markdown("**Lokal & sofort** — Template-basierte Prompts. Direkte Bild-Generierung mit Gemini.")
-st.divider()
+st.markdown("""
+    <div class="hero-banner">
+        <h1>🍌 Nano Banana Campaign Director <span class="version-badge">V12</span></h1>
+        <p>Template-basierte Prompts · Direkte Bild-Generierung mit Gemini · Veo3 Video</p>
+    </div>
+""", unsafe_allow_html=True)
 
 # --- PRESETS ---
 st.subheader("⚡ Schnellstart: Presets")
@@ -140,9 +327,16 @@ def get_val(key, default=""):
 
 
 # --- 1. MODEL & REALISMUS ---
-st.markdown("---")
-st.subheader("1. Model & Realismus")
-col1, col2, col3, col4 = st.columns(4)
+tab_model, tab_pose, tab_camera, tab_format = st.tabs([
+    "👤 Model & Look",
+    "🎭 Pose & Outfit",
+    "📸 Kamera & Licht",
+    "🎯 Format & Produkt"
+])
+
+with tab_model:
+    st.markdown('<div class="section-card"><h3>Model & Realismus</h3></div>', unsafe_allow_html=True)
+    col1, col2, col3, col4 = st.columns(4)
 
 with col1:
     gender_options = ["Female Model", "Male Model", "Non-binary Model"]
@@ -176,9 +370,9 @@ with col4:
 
 
 # --- 2. KLEIDUNG & POSE ---
-st.markdown("---")
-st.subheader("2. Kleidung, Pose & Moments")
-c_outfit, c_pose = st.columns([1, 2])
+with tab_pose:
+    st.markdown('<div class="section-card"><h3>Kleidung, Pose & Moments</h3></div>', unsafe_allow_html=True)
+    c_outfit, c_pose = st.columns([1, 2])
 
 with c_outfit:
     clothing = st.text_area("Outfit", value=get_val("clothing", ""),
@@ -226,9 +420,9 @@ with c_pose:
 
 
 # --- 3. KAMERA, LICHT & ATMOSPHÄRE ---
-st.markdown("---")
-st.subheader("3. Kamera, Licht & Atmosphäre")
-t1, t2, t3, t4 = st.columns(4)
+with tab_camera:
+    st.markdown('<div class="section-card"><h3>Kamera, Licht & Atmosphäre</h3></div>', unsafe_allow_html=True)
+    t1, t2, t3, t4 = st.columns(4)
 
 with t1:
     cam_options = ["360° Orbit (Circle around Model)", "Static Tripod",
@@ -277,9 +471,9 @@ with t4:
 
 
 # --- 4. FORMAT & PRODUKT ---
-st.markdown("---")
-st.subheader("4. Format, Produkt & Extras")
-k1, k2 = st.columns([1, 1])
+with tab_format:
+    st.markdown('<div class="section-card"><h3>Format, Produkt & Extras</h3></div>', unsafe_allow_html=True)
+    k1, k2 = st.columns([1, 1])
 
 with k1:
     product = st.text_input("Produkt / Thema", value=get_val("product", ""),
@@ -345,7 +539,7 @@ with k2:
 
 # --- 5. VEO3 VIDEO GENERATION ---
 st.markdown("---")
-st.subheader("5. 🎬 Veo3 Video-Generation (optional)")
+st.markdown('<div class="section-card"><h3>🎬 Veo3 Video-Generation</h3></div>', unsafe_allow_html=True)
 use_video = st.checkbox("Video-Prompt aktivieren", value=False,
                         help="Erweitert den Bild-Prompt um Veo3 Video-Anweisungen.")
 
@@ -512,7 +706,7 @@ if use_video:
 
 # --- 6. PRODUCT ONLY SHOT ---
 st.markdown("---")
-st.subheader("6. 💎 Product Only Shot (ohne Model)")
+st.markdown('<div class="section-card"><h3>💎 Product Only Shot (ohne Model)</h3></div>', unsafe_allow_html=True)
 use_product_only = st.checkbox("Product-Only Prompt aktivieren", value=False,
                                help="Erstellt einen separaten Prompt NUR für das Produkt – perfekt für Katalog, E-Commerce, Detail-Shots.")
 
