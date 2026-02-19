@@ -520,9 +520,41 @@ with k1:
         campaign_ref_files = []
 
     st.markdown("---")
-    negative_prompt = st.text_area("🚫 Negativ-Prompt (optional)",
-                                  placeholder="z.B. no text, no watermark, no deformed hands...",
-                                  height=80)
+    st.markdown("**🚫 Negativ-Prompt**")
+    neg_presets = st.multiselect(
+        "Häufige Ausschlüsse",
+        [
+            "no airbrush skin",
+            "no plastic look",
+            "no symmetrical face",
+            "no overly smooth skin",
+            "no wax figure appearance",
+            "no uncanny valley",
+            "no AI-generated look",
+            "no oversaturated colors",
+            "no blurry details",
+            "no deformed hands",
+            "no extra fingers",
+            "no text",
+            "no watermark",
+            "no logo",
+            "no cropped frame",
+            "no cartoonish style",
+            "no overexposed highlights",
+            "no flat lighting",
+            "no stock photo feel",
+        ],
+        default=["no airbrush skin", "no plastic look", "no text", "no watermark"],
+        help="Wähle was NICHT im Bild sein soll."
+    )
+    neg_custom = st.text_input("Eigene Ausschlüsse (optional)",
+                               placeholder="z.B. no hat, no sunglasses...",
+                               key="neg_custom_input")
+    # Combine
+    neg_parts = list(neg_presets)
+    if neg_custom and neg_custom.strip():
+        neg_parts.append(neg_custom.strip())
+    negative_prompt = ", ".join(neg_parts) if neg_parts else ""
 
 with k2:
     st.markdown("**Bildformat:**")
@@ -963,9 +995,34 @@ if use_product_only:
             "Tilt-shift miniature effect"
         ], key="prod_only_dof")
 
-        prod_negative = st.text_input("🚫 Negativ-Prompt",
-                                      value="no people, no hands, no text, no watermark, no logo",
-                                      key="prod_only_neg")
+        st.markdown("**🚫 Negativ-Prompt**")
+        prod_neg_presets = st.multiselect(
+            "Ausschlüsse",
+            [
+                "no people",
+                "no hands",
+                "no text",
+                "no watermark",
+                "no logo",
+                "no blurry details",
+                "no AI-generated look",
+                "no oversaturated colors",
+                "no cartoonish style",
+                "no flat lighting",
+                "no harsh shadows",
+                "no distracting background",
+                "no dust or scratches",
+            ],
+            default=["no people", "no hands", "no text", "no watermark", "no logo"],
+            key="prod_neg_presets"
+        )
+        prod_neg_custom = st.text_input("Eigene Ausschlüsse (optional)",
+                                        placeholder="z.B. no packaging...",
+                                        key="prod_neg_custom")
+        prod_neg_parts = list(prod_neg_presets)
+        if prod_neg_custom and prod_neg_custom.strip():
+            prod_neg_parts.append(prod_neg_custom.strip())
+        prod_negative = ", ".join(prod_neg_parts) if prod_neg_parts else ""
 
 
 # --- PROMPT BUILD (LOCAL) ---
