@@ -1216,6 +1216,39 @@ def generate_image_gemini(prompt_text, gemini_api_key, reference_images=None, as
         if e.response.status_code == 404:
             st.session_state.gemini_model_name = None
             st.error(f"Modell '{model}' nicht verfügbar. Bitte nochmal klicken – suche alternatives Modell.")
+        elif e.response.status_code == 503 or e.response.status_code == 429:
+            # Model overloaded — try fallback
+            fallback_models = [
+                "gemini-2.5-flash-image",
+                "gemini-2.5-flash-preview-image",
+                "gemini-2.0-flash",
+            ]
+            # Remove current model from fallbacks
+            fallback_models = [m for m in fallback_models if m not in model]
+
+            for fb in fallback_models:
+                st.warning(f"⚡ {model} überlastet — versuche Fallback: **{fb}**...")
+                fb_url = f"https://generativelanguage.googleapis.com/v1beta/models/{fb}:generateContent?key={gemini_api_key}"
+                try:
+                    fb_response = requests.post(fb_url, json=payload, headers=headers, timeout=180)
+                    fb_response.raise_for_status()
+                    fb_data = fb_response.json()
+
+                    for candidate in fb_data.get("candidates", []):
+                        content = candidate.get("content", {})
+                        parts_resp = content.get("parts", [])
+                        for part in parts_resp:
+                            if "inlineData" in part:
+                                img_data = part["inlineData"]["data"]
+                                mime_type = part["inlineData"].get("mimeType", "image/png")
+                                img_bytes_result = base64.b64decode(img_data)
+                                st.session_state.gemini_model_name = fb
+                                st.success(f"✅ Fallback erfolgreich mit **{fb}**")
+                                return img_bytes_result, mime_type
+                except:
+                    continue
+
+            st.error(f"Alle Modelle überlastet. Bitte in 1-2 Minuten nochmal versuchen.")
         else:
             st.error(f"Gemini API Fehler: {e}\n{error_detail}")
         return None, None
