@@ -1,6 +1,8 @@
 import streamlit as st
 import json
 import os
+import requests
+import base64
 from datetime import datetime
 from jinja2 import Template
 
@@ -72,13 +74,25 @@ st.markdown("""
 with st.sidebar:
     st.header("🔑 Settings")
 
-    # Optional API Key (only for polish mode)
+    # Gemini API Key (for image generation)
+    st.markdown("**🍌 Nano Banana (Gemini)**")
+    if "GEMINI_API_KEY" in st.secrets:
+        st.success("Gemini API Key aktiv ✅")
+        gemini_key = st.secrets["GEMINI_API_KEY"]
+    else:
+        gemini_key = st.text_input("Gemini API Key", type="password", help="Für Bild-Generierung mit Gemini.")
+        if not gemini_key:
+            st.caption("Optional: Für direkte Bild-Generierung.")
+
+    st.markdown("---")
+
+    # Optional OpenAI API Key (only for polish mode)
     use_polish = st.checkbox("✨ GPT-4o Polish (optional)", value=False,
                              help="Verfeinert den Prompt mit GPT-4o. Braucht API Key.")
     api_key = None
     if use_polish:
         if "OPENAI_API_KEY" in st.secrets:
-            st.success("API Key aktiv (Secrets) ✅")
+            st.success("OpenAI API Key aktiv ✅")
             api_key = st.secrets["OPENAI_API_KEY"]
         else:
             api_key = st.text_input("OpenAI API Key", type="password")
@@ -86,9 +100,9 @@ with st.sidebar:
                 st.warning("API Key nötig für Polish-Modus.")
 
     st.markdown("---")
-    st.info("**Lokal:** Template-basiert, kein API nötig.\n\n**Polish:** Optional GPT-4o Verfeinerung.")
+    st.info("**Lokal:** Template-basiert, kein API nötig.\n\n**Gemini:** Direkte Bild-Generierung.\n\n**Polish:** Optional GPT-4o Verfeinerung.")
     st.markdown("---")
-    st.caption("V11: Lokales Template · Presets · History · Optional Polish")
+    st.caption("V12: Lokales Template · Gemini Image Gen · Presets · History")
 
     # --- HISTORY ---
     st.markdown("---")
@@ -106,8 +120,8 @@ with st.sidebar:
 
 
 # --- HEADER ---
-st.title("🍌 Nano Banana Campaign Director (V11)")
-st.markdown("**Lokal & sofort** — Template-basierte Prompts. Optional mit GPT-4o Polish.")
+st.title("🍌 Nano Banana Campaign Director (V12)")
+st.markdown("**Lokal & sofort** — Template-basierte Prompts. Direkte Bild-Generierung mit Gemini.")
 st.divider()
 
 # --- PRESETS ---
@@ -1000,8 +1014,72 @@ Do NOT add or remove any specifications — only improve the prose and flow."""
         return None
 
 
+def generate_image_gemini(prompt_text, gemini_api_key):
+    """Generate an image using the Gemini API (Imagen via Gemini)."""
+    import requests
+    import base64
+
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key={gemini_api_key}"
+
+    payload = {
+        "contents": [{
+            "parts": [{
+                "text": f"Generate an image based on this description. Create ONLY an image, no text response.\n\n{prompt_text}"
+            }]
+        }],
+        "generationConfig": {
+            "responseModalities": ["TEXT", "IMAGE"]
+        }
+    }
+
+    headers = {"Content-Type": "application/json"}
+
+    try:
+        response = requests.post(url, json=payload, headers=headers, timeout=120)
+        response.raise_for_status()
+        data = response.json()
+
+        # Extract image from response
+        candidates = data.get("candidates", [])
+        for candidate in candidates:
+            content = candidate.get("content", {})
+            parts = content.get("parts", [])
+            for part in parts:
+                if "inlineData" in part:
+                    img_data = part["inlineData"]["data"]
+                    mime_type = part["inlineData"].get("mimeType", "image/png")
+                    img_bytes = base64.b64decode(img_data)
+                    return img_bytes, mime_type
+
+        st.error("Gemini hat kein Bild zurückgegeben. Versuche den Prompt anzupassen.")
+        return None, None
+
+    except requests.exceptions.Timeout:
+        st.error("⏰ Timeout — Gemini braucht zu lange. Bitte nochmal versuchen.")
+        return None, None
+    except requests.exceptions.HTTPError as e:
+        error_detail = ""
+        try:
+            error_detail = e.response.json().get("error", {}).get("message", "")
+        except:
+            pass
+        st.error(f"Gemini API Fehler: {e}\n{error_detail}")
+        return None, None
+    except Exception as e:
+        st.error(f"Fehler bei der Bildgenerierung: {e}")
+        return None, None
+
+
 # --- OUTPUT ---
 st.markdown("---")
+
+# Session state for generated prompts (so generate button can access them)
+if "last_image_prompt" not in st.session_state:
+    st.session_state.last_image_prompt = None
+if "last_product_prompt" not in st.session_state:
+    st.session_state.last_product_prompt = None
+if "generated_images" not in st.session_state:
+    st.session_state.generated_images = []
 
 # Dynamic button text
 btn_label = "🍌🎬 IMAGE + VIDEO PROMPT GENERIEREN" if use_video else "🍌 PROMPT GENERIEREN"
@@ -1013,6 +1091,7 @@ if st.button(btn_label):
         with st.spinner("Baue Prompt..."):
             raw_prompt, reminder = build_prompt_local()
 
+        st.session_state.last_image_prompt = raw_prompt
         st.success("✅ Bild-Prompt generiert!")
         if reminder:
             st.info(reminder)
@@ -1069,6 +1148,56 @@ if st.button(btn_label):
                     mime="text/plain"
                 )
 
+# --- GENERATE IMAGE WITH GEMINI ---
+if st.session_state.last_image_prompt:
+    st.markdown("---")
+    st.markdown("### 🎨 Bild mit Gemini generieren")
+
+    gen1, gen2 = st.columns([2, 1])
+    with gen2:
+        num_images = st.selectbox("Anzahl Bilder", [1, 2, 3, 4], index=0, key="num_img_campaign")
+
+    with gen1:
+        if not gemini_key:
+            st.warning("⚠️ Gemini API Key fehlt! Füge ihn in der Sidebar oder in Streamlit Secrets hinzu.")
+        
+        if st.button("🚀 JETZT ERSTELLEN MIT GEMINI", disabled=not gemini_key):
+            for i in range(num_images):
+                with st.spinner(f"Gemini generiert Bild {i+1}/{num_images}... (kann 30-60 Sek. dauern)"):
+                    img_bytes, mime_type = generate_image_gemini(
+                        st.session_state.last_image_prompt, gemini_key
+                    )
+                if img_bytes:
+                    st.session_state.generated_images.append({
+                        "bytes": img_bytes,
+                        "mime": mime_type,
+                        "type": "campaign",
+                        "time": datetime.now().strftime("%H:%M:%S"),
+                    })
+
+    # Show generated images
+    if st.session_state.generated_images:
+        campaign_imgs = [img for img in st.session_state.generated_images if img["type"] == "campaign"]
+        if campaign_imgs:
+            st.markdown("### 🖼️ Generierte Bilder")
+            cols = st.columns(min(len(campaign_imgs), 4))
+            for idx, img in enumerate(campaign_imgs):
+                with cols[idx % 4]:
+                    st.image(img["bytes"], caption=f"Campaign #{idx+1} — {img['time']}", use_container_width=True)
+                    ext = "png" if "png" in img["mime"] else "jpg"
+                    st.download_button(
+                        label=f"💾 Bild #{idx+1} speichern",
+                        data=img["bytes"],
+                        file_name=f"nano_banana_campaign_{idx+1}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{ext}",
+                        mime=img["mime"],
+                        key=f"dl_campaign_{idx}_{img['time']}"
+                    )
+
+            if st.button("🗑️ Generierte Campaign-Bilder löschen"):
+                st.session_state.generated_images = [img for img in st.session_state.generated_images if img["type"] != "campaign"]
+                st.rerun()
+
+
 # --- PRODUCT ONLY BUTTON ---
 if use_product_only:
     st.markdown("---")
@@ -1079,6 +1208,7 @@ if use_product_only:
             with st.spinner("Baue Product-Only Prompt..."):
                 product_prompt = build_product_only_prompt()
 
+            st.session_state.last_product_prompt = product_prompt
             st.success("✅ Product-Only Prompt generiert!")
             st.markdown("### 💎 Product Only Prompt")
             st.code(product_prompt, language="text")
@@ -1104,3 +1234,51 @@ if use_product_only:
                 file_name=f"nano_banana_product_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
                 mime="text/plain"
             )
+
+    # --- GENERATE PRODUCT IMAGE WITH GEMINI ---
+    if st.session_state.last_product_prompt:
+        st.markdown("---")
+        st.markdown("### 🎨 Product-Bild mit Gemini generieren")
+
+        pg1, pg2 = st.columns([2, 1])
+        with pg2:
+            num_prod_images = st.selectbox("Anzahl Bilder", [1, 2, 3, 4], index=0, key="num_img_product")
+
+        with pg1:
+            if not gemini_key:
+                st.warning("⚠️ Gemini API Key fehlt!")
+
+            if st.button("🚀 PRODUCT JETZT ERSTELLEN", disabled=not gemini_key):
+                for i in range(num_prod_images):
+                    with st.spinner(f"Gemini generiert Product-Bild {i+1}/{num_prod_images}..."):
+                        img_bytes, mime_type = generate_image_gemini(
+                            st.session_state.last_product_prompt, gemini_key
+                        )
+                    if img_bytes:
+                        st.session_state.generated_images.append({
+                            "bytes": img_bytes,
+                            "mime": mime_type,
+                            "type": "product",
+                            "time": datetime.now().strftime("%H:%M:%S"),
+                        })
+
+        # Show product images
+        product_imgs = [img for img in st.session_state.generated_images if img["type"] == "product"]
+        if product_imgs:
+            st.markdown("### 🖼️ Generierte Product-Bilder")
+            cols = st.columns(min(len(product_imgs), 4))
+            for idx, img in enumerate(product_imgs):
+                with cols[idx % 4]:
+                    st.image(img["bytes"], caption=f"Product #{idx+1} — {img['time']}", use_container_width=True)
+                    ext = "png" if "png" in img["mime"] else "jpg"
+                    st.download_button(
+                        label=f"💾 Product #{idx+1} speichern",
+                        data=img["bytes"],
+                        file_name=f"nano_banana_product_{idx+1}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{ext}",
+                        mime=img["mime"],
+                        key=f"dl_product_{idx}_{img['time']}"
+                    )
+
+            if st.button("🗑️ Generierte Product-Bilder löschen"):
+                st.session_state.generated_images = [img for img in st.session_state.generated_images if img["type"] != "product"]
+                st.rerun()
