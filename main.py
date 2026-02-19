@@ -1457,41 +1457,68 @@ st.markdown("---")
 # Session state for generated prompts (so generate button can access them)
 if "last_image_prompt" not in st.session_state:
     st.session_state.last_image_prompt = None
+if "last_video_prompt" not in st.session_state:
+    st.session_state.last_video_prompt = None
 if "last_product_prompt" not in st.session_state:
     st.session_state.last_product_prompt = None
 if "generated_images" not in st.session_state:
     st.session_state.generated_images = []
 
+# --- GENERATION MODE SELECTOR ---
+st.markdown('<div class="section-card"><h3>🚀 Generieren</h3></div>', unsafe_allow_html=True)
+
+if use_video:
+    gen_mode = st.radio(
+        "Was möchtest du generieren?",
+        ["📷 Nur Foto", "🎬 Nur Video-Prompt", "📷+🎬 Foto + Video"],
+        index=2,
+        horizontal=True,
+        help="Wähle ob du ein Foto, einen Video-Prompt oder beides generieren willst."
+    )
+else:
+    gen_mode = "📷 Nur Foto"
+
 # Dynamic button text
-btn_label = "🍌🎬 IMAGE + VIDEO PROMPT GENERIEREN" if use_video else "🍌 PROMPT GENERIEREN"
+if gen_mode == "📷 Nur Foto":
+    btn_label = "🍌 FOTO-PROMPT GENERIEREN"
+elif gen_mode == "🎬 Nur Video-Prompt":
+    btn_label = "🎬 VIDEO-PROMPT GENERIEREN"
+else:
+    btn_label = "🍌🎬 FOTO + VIDEO PROMPT GENERIEREN"
 
 if st.button(btn_label):
     if not product:
         st.warning("Bitte ein Produkt / Thema eingeben!")
     else:
+        # Always build the base image prompt (needed for video too)
         with st.spinner("Baue Prompt..."):
             raw_prompt, reminder = build_prompt_local()
 
-        st.session_state.last_image_prompt = raw_prompt
-        st.success("✅ Bild-Prompt generiert!")
-        if reminder:
-            st.info(reminder)
+        # --- FOTO ---
+        if gen_mode in ["📷 Nur Foto", "📷+🎬 Foto + Video"]:
+            st.session_state.last_image_prompt = raw_prompt
+            st.success("✅ Bild-Prompt generiert!")
+            if reminder:
+                st.info(reminder)
+            st.markdown("### 📋 Bild-Prompt")
+            st.code(raw_prompt, language="text")
 
-        # Show raw template prompt
-        st.markdown("### 📋 Bild-Prompt")
-        st.code(raw_prompt, language="text")
-
-        # VIDEO PROMPT
+        # --- VIDEO ---
         final_video_prompt = None
-        if use_video:
-            with st.spinner("Baue Video-Prompt..."):
-                final_video_prompt = build_video_prompt(raw_prompt)
-            st.success("✅ Veo3 Video-Prompt generiert!")
-            st.markdown("### 🎬 Veo3 Video-Prompt")
-            st.code(final_video_prompt, language="text")
+        if gen_mode in ["🎬 Nur Video-Prompt", "📷+🎬 Foto + Video"]:
+            if use_video:
+                with st.spinner("Baue Video-Prompt..."):
+                    final_video_prompt = build_video_prompt(raw_prompt)
+                st.session_state.last_video_prompt = final_video_prompt
+                st.success("✅ Veo3 Video-Prompt generiert!")
+                st.markdown("### 🎬 Veo3 Video-Prompt")
+                st.code(final_video_prompt, language="text")
+
+        # If video-only mode, don't show image prompt but still store it
+        if gen_mode == "🎬 Nur Video-Prompt":
+            st.session_state.last_image_prompt = None  # Don't show image generate button
 
         # Optional GPT polish
-        prompt_to_save = raw_prompt
         if use_polish:
             if not api_key:
                 st.warning("⚠️ API Key fehlt für den Polish-Modus!")
@@ -1502,26 +1529,36 @@ if st.button(btn_label):
                 if polished:
                     st.markdown("### ✨ GPT-4o Polished Version")
                     st.code(polished, language="text")
-                    prompt_to_save = polished
 
         # Save to history
+        if gen_mode == "📷 Nur Foto":
+            save_prompt = raw_prompt
+            save_type = "📷 Bild"
+        elif gen_mode == "🎬 Nur Video-Prompt":
+            save_prompt = final_video_prompt or raw_prompt
+            save_type = "🎬 Video"
+        else:
+            save_prompt = final_video_prompt or raw_prompt
+            save_type = "📷+🎬 Beides"
+
         st.session_state.prompt_history.append({
             "time": datetime.now().strftime("%H:%M:%S"),
-            "prompt": final_video_prompt if final_video_prompt else raw_prompt,
-            "type": "🎬 Video" if use_video else "📷 Bild",
+            "prompt": save_prompt,
+            "type": save_type,
         })
 
         # Export buttons
         ex1, ex2 = st.columns(2)
-        with ex1:
-            st.download_button(
-                label="💾 Bild-Prompt speichern (.txt)",
-                data=raw_prompt,
-                file_name=f"nano_banana_image_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
-                mime="text/plain"
-            )
-        with ex2:
-            if final_video_prompt:
+        if gen_mode in ["📷 Nur Foto", "📷+🎬 Foto + Video"]:
+            with ex1:
+                st.download_button(
+                    label="💾 Bild-Prompt speichern (.txt)",
+                    data=raw_prompt,
+                    file_name=f"nano_banana_image_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+                    mime="text/plain"
+                )
+        if final_video_prompt and gen_mode in ["🎬 Nur Video-Prompt", "📷+🎬 Foto + Video"]:
+            with ex2:
                 st.download_button(
                     label="🎬 Video-Prompt speichern (.txt)",
                     data=final_video_prompt,
