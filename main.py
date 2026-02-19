@@ -337,6 +337,19 @@ def get_val(key, default=""):
     return p.get(key, default)
 
 
+# --- ULTRA REALISMUS MODE ---
+ur_col1, ur_col2 = st.columns([1, 2])
+with ur_col1:
+    ultra_realism = st.toggle("🔬 Ultra-Realismus Modus", value=False,
+                              help="Injiziert automatisch maximale Realismus-Anweisungen in jeden Prompt.")
+with ur_col2:
+    if ultra_realism:
+        st.markdown("""
+        <div style="background: rgba(255,215,0,0.08); border: 1px solid rgba(255,215,0,0.2); border-radius: 8px; padding: 8px 14px; font-size: 0.85rem;">
+        <strong style="color: #FFD700;">🔬 Aktiv:</strong> <span style="color: #a0aec0;">Hautporen · Vellushaar · Augenreflexionen · Filmkörnung · Micro-Imperfektionen · Asymmetrie · Natürliche Schatten</span>
+        </div>
+        """, unsafe_allow_html=True)
+
 # --- 1. MODEL & REALISMUS ---
 tab_model, tab_pose, tab_camera, tab_format = st.tabs([
     "👤 Model & Look",
@@ -554,6 +567,17 @@ with k1:
     neg_parts = list(neg_presets)
     if neg_custom and neg_custom.strip():
         neg_parts.append(neg_custom.strip())
+    # Auto-inject ultra-realism negatives
+    if ultra_realism:
+        ultra_negs = [
+            "no airbrushed skin", "no plastic look", "no wax figure",
+            "no symmetrical face", "no overly smooth skin", "no uncanny valley",
+            "no CGI appearance", "no oversaturated colors", "no flat studio lighting",
+            "no stock photo aesthetic", "no mannequin-like appearance"
+        ]
+        for un in ultra_negs:
+            if un not in neg_parts:
+                neg_parts.append(un)
     negative_prompt = ", ".join(neg_parts) if neg_parts else ""
 
 with k2:
@@ -1128,6 +1152,48 @@ def build_prompt_local():
     # Add negative prompt if provided
     if negative_prompt and negative_prompt.strip():
         prompt += f"\n\nNEGATIVE PROMPT: {negative_prompt.strip()}"
+
+    # --- ULTRA REALISMUS MODE ---
+    if ultra_realism:
+        ultra_block = """
+
+ULTRA-REALISM INSTRUCTIONS (CRITICAL — follow every point):
+
+SKIN:
+- Render visible skin pores at macro level, especially on nose, cheeks, and forehead
+- Include vellus hair (peach fuzz) catching light on cheeks, jawline, upper lip, and arms
+- Show natural skin texture variation: slight redness on nose tip and cheeks, subtle under-eye circles
+- Add micro-imperfections: a tiny mole, barely visible acne scar, minor skin discoloration
+- Skin must have subsurface scattering — light penetrating slightly through ears, fingertips, nostrils
+- NO airbrushed, porcelain, or plastic-looking skin under any circumstance
+
+EYES:
+- Each iris must have unique, complex color patterns with visible limbal ring
+- Render catchlights reflecting the actual light source (softbox shape, window, etc.)
+- Show tiny red blood vessels in the sclera (whites of eyes)
+- Subtle moisture/tear film reflection along the lower eyelid
+- Pupils must be realistic size for the lighting conditions
+
+HAIR:
+- Individual strand-level detail, not painted-on texture blocks
+- Flyaway hairs and baby hairs along the hairline
+- Subtle variation in hair color (natural highlights, darker roots)
+- Hair interacting with light: translucent edges where backlit
+
+FACIAL STRUCTURE:
+- Natural asymmetry between left and right side of face (slightly different eyebrow height, lip shape)
+- Visible nasolabial folds appropriate for age
+- Natural lip texture with subtle vertical lines and slight moisture
+
+PHOTOGRAPHY REALISM:
+- Subtle film grain (ISO 200-400 equivalent)
+- Minimal chromatic aberration at frame edges
+- Natural lens vignette (slightly darker corners)
+- Depth of field with realistic bokeh circles in out-of-focus areas
+- Color science matching real camera output (not oversaturated AI look)
+
+THIS IMAGE MUST BE INDISTINGUISHABLE FROM A REAL PHOTOGRAPH TAKEN BY A PROFESSIONAL PHOTOGRAPHER WITH A HIGH-END DSLR CAMERA."""
+        prompt += ultra_block
 
     # Clean up extra blank lines
     lines = prompt.split("\n")
