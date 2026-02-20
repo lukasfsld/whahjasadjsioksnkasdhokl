@@ -1535,6 +1535,14 @@ def build_prompt_local():
         weather=weather,
         ar_text=ar_text,
         ref_reminder=ref_reminder,
+        quality_keywords=(
+            "QUALITY: Editorial photograph quality, professional color grading, "
+            "natural volumetric lighting, photorealistic skin texture, magazine cover quality. "
+            "All products shown at their REAL physical size — do not enlarge jewelry or accessories."
+            if "💎 Pro" in model_quality else
+            "QUALITY KEYWORDS: 8K resolution, hyper-realistic, editorial quality, professional color grading, "
+            "volumetric lighting, micro-detail rendering, photorealistic skin texture, magazine cover quality."
+        ),
     )
 
     # Add negative prompt if provided
@@ -1802,18 +1810,42 @@ def generate_image_gemini(prompt_text, gemini_api_key, reference_images=None, as
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={gemini_api_key}"
 
     # Add sharpness boost to prompt
-    quality_boost = (
-        "\n\nIMPORTANT QUALITY INSTRUCTIONS: Generate at MAXIMUM available resolution. "
-        "The image must be tack-sharp with extreme detail when zoomed in. "
-        "Razor-sharp focus, no blur, no softness, no compression artifacts. "
-        "Every texture, pore, fabric thread, and material grain must be crisply rendered. "
-        "Professional retouching quality with pixel-perfect sharpness throughout the entire frame."
-        "\n\nTEXT SPELLING RULE: If ANY text appears in the image, it MUST be spelled 100% correctly. "
-        "Check every letter carefully. No typos, no missing letters, no swapped letters. "
-        "German text must use correct German spelling (e.g. 'Versand' not 'Vershand', "
-        "'Geschenk' not 'Geschnek', 'kostenlos' not 'kostelos'). "
-        "If unsure about a word, use simpler/shorter text instead."
-    )
+    # Different quality instructions for Flash vs Pro
+    # Pro model tends to enlarge products when told to add "extreme detail" —
+    # so we focus Pro instructions on SKIN/PHOTO quality, not product prominence
+    if prefer_pro:
+        quality_boost = (
+            "\n\nQUALITY INSTRUCTIONS (Pro Model): Generate at maximum resolution. "
+            "Focus on photographic realism: natural skin texture with visible pores, "
+            "realistic lighting with proper highlights and shadows, accurate fabric draping, "
+            "and professional color grading. The image should look like a high-end editorial photograph."
+            "\n\nCRITICAL PRODUCT SCALE RULE: All jewelry, necklaces, pendants, rings, and accessories "
+            "MUST appear at their TRUE real-world physical size relative to the human body. "
+            "A typical necklace pendant is only 10-25mm (1-2.5cm) — it should appear SMALL and DELICATE "
+            "on a human neck, NOT enlarged or exaggerated. A ring is thin and subtle on a finger. "
+            "Do NOT make any product bigger, bolder, or more visually dominant than it would be "
+            "in a real photograph. The product should be naturally proportioned — if you have to squint "
+            "to see it in real life, it should be similarly subtle in the image. "
+            "NEVER enlarge a product to make it more visible. Realism of scale is MORE important than product visibility."
+            "\n\nTEXT SPELLING RULE: If ANY text appears in the image, it MUST be spelled 100% correctly. "
+            "Check every letter carefully. No typos, no missing letters, no swapped letters. "
+            "German text must use correct German spelling (e.g. 'Versand' not 'Vershand', "
+            "'Geschenk' not 'Geschnek', 'kostenlos' not 'kostelos'). "
+            "If unsure about a word, use simpler/shorter text instead."
+        )
+    else:
+        quality_boost = (
+            "\n\nIMPORTANT QUALITY INSTRUCTIONS: Generate at MAXIMUM available resolution. "
+            "The image must be tack-sharp with extreme detail when zoomed in. "
+            "Razor-sharp focus, no blur, no softness, no compression artifacts. "
+            "Every texture, pore, fabric thread, and material grain must be crisply rendered. "
+            "Professional retouching quality with pixel-perfect sharpness throughout the entire frame."
+            "\n\nTEXT SPELLING RULE: If ANY text appears in the image, it MUST be spelled 100% correctly. "
+            "Check every letter carefully. No typos, no missing letters, no swapped letters. "
+            "German text must use correct German spelling (e.g. 'Versand' not 'Vershand', "
+            "'Geschenk' not 'Geschnek', 'kostenlos' not 'kostelos'). "
+            "If unsure about a word, use simpler/shorter text instead."
+        )
     enhanced_prompt = prompt_text + quality_boost
 
     # Build parts: text prompt + reference images
@@ -1860,10 +1892,9 @@ def generate_image_gemini(prompt_text, gemini_api_key, reference_images=None, as
                 image_config["aspectRatio"] = val
                 break
 
-    # Pro model supports higher resolution
+    # Pro model supports higher resolution (1K, 2K, 4K)
     if prefer_pro and "pro" in model.lower():
-        # Note: not all pro models support imageSize — try it but handle gracefully
-        image_config["outputImageSize"] = "2048x2048"
+        image_config["imageSize"] = "2K"
 
     if image_config:
         gen_config["imageConfig"] = image_config
@@ -1911,8 +1942,6 @@ def generate_image_gemini(prompt_text, gemini_api_key, reference_images=None, as
         # If Pro timed out, try again without high-res config
         if prefer_pro:
             st.warning("⏰ Pro-Modell Timeout bei hoher Auflösung — versuche Standard-Auflösung...")
-            if "outputImageSize" in gen_config.get("imageConfig", {}):
-                del gen_config["imageConfig"]["outputImageSize"]
             if "imageSize" in gen_config.get("imageConfig", {}):
                 del gen_config["imageConfig"]["imageSize"]
             retry_payload = {
@@ -1947,7 +1976,7 @@ def generate_image_gemini(prompt_text, gemini_api_key, reference_images=None, as
             st.warning("⚠️ Pro-Modell unterstützt diese Konfiguration nicht — versuche ohne Größen-Einstellung...")
             if "imageConfig" in gen_config:
                 gen_config["imageConfig"] = {k: v for k, v in gen_config["imageConfig"].items()
-                                             if k not in ("imageSize", "outputImageSize")}
+                                             if k != "imageSize"}
             retry_payload = {
                 "contents": [{"parts": parts}],
                 "generationConfig": gen_config,
