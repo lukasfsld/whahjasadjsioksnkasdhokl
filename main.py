@@ -1185,11 +1185,81 @@ if use_ad_creative:
             "Produkt-Referenzbilder für Ad (max. 4)",
             type=["png", "jpg", "jpeg", "webp"],
             accept_multiple_files=True,
-            key="ad_ref_upload"
+            key="ad_ref_upload",
+            help="💡 Tipp: Lade mindestens 1 Bild hoch wo der Schmuck GETRAGEN wird — das hilft bei der Größen-Proportion!"
         )
         if ad_ref_files and len(ad_ref_files) > 4:
             st.warning("Maximal 4 Bilder!")
             ad_ref_files = ad_ref_files[:4]
+
+    # --- NEW ROW: Funnel Stage & Conversion Triggers ---
+    st.markdown("---")
+    ad5, ad6 = st.columns(2)
+
+    with ad5:
+        st.markdown("**🎯 Funnel-Stage & Hook**")
+        ad_funnel = st.selectbox("Funnel-Stage", [
+            "🔝 TOFU — Cold Audience (Aufmerksamkeit gewinnen)",
+            "🔄 MOFU — Warm Audience (Vertrauen aufbauen)",
+            "🔥 BOFU — Hot Audience / Retargeting (Kauf auslösen)",
+        ], help="TOFU: Brand Discovery. MOFU: Consideration. BOFU: Conversion/Retargeting.")
+
+        ad_hook = st.selectbox("Scroll-Stopper / Hook", [
+            "Kontrast (Vorher/Nachher, mit/ohne Schmuck)",
+            "Extreme Close-Up (Makro-Detail als Blickfang)",
+            "Unerwarteter Winkel (von unten, Spiegelung, etc.)",
+            "Emotionaler Moment (Freudentränen, Überraschung)",
+            "Bold Text First (große Headline dominiert)",
+            "Produkt in Bewegung (Glitzern, Licht-Reflexe)",
+            "Social Proof (Sternebewertung, Kundenzitat)",
+            "Luxus-Setting (Champagner, Rosenblätter, Samt)",
+        ], help="Der 'Hook' ist das Element das in den ersten 0.5 Sekunden die Aufmerksamkeit fängt.")
+
+        ad_trust_signals = st.multiselect("Vertrauens-Signale (auf dem Bild)", [
+            "⭐ 5-Sterne-Bewertung",
+            "❤️ 'Bestseller' Badge",
+            "🚚 'Gratis Versand' Badge",
+            "🔒 'Sicher bezahlen' Icon",
+            "🏷️ Preis auf dem Bild",
+            "📦 '1000+ verkauft'",
+            "✅ 'Handgefertigt' Siegel",
+            "↩️ 'Kostenlose Rückgabe'",
+        ], help="Trust-Badges auf dem Bild erhöhen die Conversion-Rate signifikant.")
+
+    with ad6:
+        st.markdown("**🎠 Carousel-Modus**")
+        ad_carousel = st.checkbox("Carousel Ad (mehrere Slides)", value=False,
+                                  help="Generiert 3-5 zusammengehörige Slides für Facebook/Instagram Carousel Ads.")
+
+        if ad_carousel:
+            ad_carousel_count = st.select_slider("Anzahl Slides", options=[3, 4, 5], value=4)
+            ad_carousel_story = st.selectbox("Carousel-Story-Typ", [
+                "🎬 Produkt-Journey (Detail → Am Model → Lifestyle → CTA)",
+                "💝 Emotionale Story (Geschenk-Moment Schritt für Schritt)",
+                "🎨 Varianten-Showcase (Farben / Styles nebeneinander)",
+                "📖 Feature-Walkthrough (Material → Gravur → Verpackung → Preis)",
+                "⭐ Social Proof Carousel (Kundenbild → Review → Produkt → CTA)",
+                "🔍 Zoom-Reveal (Weit → Nah → Makro → Am Model)",
+            ])
+            ad_carousel_cta_last = st.checkbox("Letzte Slide = CTA-Slide", value=True,
+                                               help="Die letzte Slide enthält einen starken Call-to-Action.")
+        else:
+            ad_carousel_count = 1
+            ad_carousel_story = ""
+            ad_carousel_cta_last = False
+
+        st.markdown("**🧠 Conversion-Psychologie**")
+        ad_psych_triggers = st.multiselect("Psychologische Trigger", [
+            "⏰ Urgency (begrenzte Zeit)",
+            "📉 Scarcity (nur noch X verfügbar)",
+            "🎁 Reciprocity (Gratis-Geschenk bei Kauf)",
+            "👥 Social Proof (andere kaufen das auch)",
+            "💎 Exclusivity (Limited Edition / VIP)",
+            "🪞 Self-Image (so sieht das an DIR aus)",
+            "❤️ Emotional Anchoring (Liebe, Erinnerung, Meilenstein)",
+            "💰 Value Framing (Preis im Kontext: 'weniger als 1€/Tag')",
+        ], default=["🪞 Self-Image (so sieht das an DIR aus)", "❤️ Emotional Anchoring (Liebe, Erinnerung, Meilenstein)"],
+           help="Psychologische Prinzipien die nachweislich Conversion steigern.")
 
 
 # --- AD CREATIVE PROMPT BUILDER ---
@@ -1377,6 +1447,66 @@ def build_ad_creative_prompt():
     }
     font_instr = font_map.get(ad_font, "clean, modern sans-serif")
 
+    # Funnel stage instruction
+    funnel_map = {
+        "🔝 TOFU — Cold Audience (Aufmerksamkeit gewinnen)": (
+            "FUNNEL STAGE: TOP OF FUNNEL (Cold Audience). This person has NEVER seen your brand before. "
+            "Priority: STOP THE SCROLL. Be visually striking, emotionally compelling, and curiosity-inducing. "
+            "Do NOT hard-sell. Focus on aspiration, beauty, and brand impression. The goal is to make them REMEMBER you."
+        ),
+        "🔄 MOFU — Warm Audience (Vertrauen aufbauen)": (
+            "FUNNEL STAGE: MIDDLE OF FUNNEL (Warm Audience). This person has seen the brand before but hasn't bought yet. "
+            "Priority: BUILD TRUST. Show the product in real-life context, emphasize quality, craftsmanship, "
+            "and social proof. Include trust signals. Make them WANT it and feel confident about the purchase."
+        ),
+        "🔥 BOFU — Hot Audience / Retargeting (Kauf auslösen)": (
+            "FUNNEL STAGE: BOTTOM OF FUNNEL (Hot / Retargeting). This person has visited the site or added to cart. "
+            "Priority: CONVERT NOW. Show the product prominently with a clear offer, urgency, or incentive. "
+            "Remove any remaining hesitation. Strong CTA, clear price/offer, fast path to purchase."
+        ),
+    }
+    funnel_instr = funnel_map.get(ad_funnel, "")
+
+    # Hook / Scroll-Stopper
+    hook_map = {
+        "Kontrast (Vorher/Nachher, mit/ohne Schmuck)": "HOOK: Create visual CONTRAST — show the transformation. Before/after, with/without the jewelry. The difference should be immediately striking.",
+        "Extreme Close-Up (Makro-Detail als Blickfang)": "HOOK: Start with an EXTREME CLOSE-UP of the jewelry. Macro-level detail that reveals beauty invisible to the naked eye. Gemstone facets, metal texture, engraving detail.",
+        "Unerwarteter Winkel (von unten, Spiegelung, etc.)": "HOOK: Use an UNEXPECTED ANGLE that stops the scroll. Reflection in a mirror, shot from below looking up, dramatic perspective that makes the viewer look twice.",
+        "Emotionaler Moment (Freudentränen, Überraschung)": "HOOK: Capture a genuine EMOTIONAL MOMENT — surprise, joy, tears of happiness. The human emotion IS the hook. The jewelry is the cause of the emotion.",
+        "Bold Text First (große Headline dominiert)": "HOOK: The TEXT is the primary hook. Large, bold headline that makes a provocative statement or asks a question. The image supports the text, not the other way around.",
+        "Produkt in Bewegung (Glitzern, Licht-Reflexe)": "HOOK: Show the product CATCHING LIGHT — the sparkle, the shimmer, light dancing across metal and gemstones. The visual 'glitter' effect is the scroll-stopper.",
+        "Social Proof (Sternebewertung, Kundenzitat)": "HOOK: Lead with SOCIAL PROOF — a star rating, a customer quote, or a 'bestseller' badge. The credibility of others is the first thing the viewer sees.",
+        "Luxus-Setting (Champagner, Rosenblätter, Samt)": "HOOK: Create a LUXURY ATMOSPHERE that triggers aspiration — velvet, champagne, rose petals, soft candlelight. The setting itself communicates premium value before the product is even noticed.",
+    }
+    hook_instr = hook_map.get(ad_hook, "")
+
+    # Trust badges
+    trust_badges_instr = ""
+    if ad_trust_signals:
+        badge_texts = [s.split(" ", 1)[1] if " " in s else s for s in ad_trust_signals]
+        trust_badges_instr = (
+            f"TRUST BADGES ON IMAGE: Include these trust elements visually on the image as small, "
+            f"professional badges or icons: {', '.join(badge_texts)}. "
+            f"Place them subtly (corner or edge) — they should be visible but not dominate the composition."
+        )
+
+    # Psychology triggers
+    psych_instr = ""
+    if ad_psych_triggers:
+        trigger_details = {
+            "⏰ Urgency (begrenzte Zeit)": "Create visual urgency — a timer, 'Nur heute', or limited-time visual cue",
+            "📉 Scarcity (nur noch X verfügbar)": "Suggest scarcity — 'Fast ausverkauft' or 'Nur noch 3 verfügbar' visual element",
+            "🎁 Reciprocity (Gratis-Geschenk bei Kauf)": "Show a free gift element — gift box, bonus item, or 'Gratis dazu' badge",
+            "👥 Social Proof (andere kaufen das auch)": "Include social proof elements — customer count, reviews, or 'Beliebteste Wahl' badge",
+            "💎 Exclusivity (Limited Edition / VIP)": "Communicate exclusivity — 'Limited Edition', 'Nur bei uns', premium packaging",
+            "🪞 Self-Image (so sieht das an DIR aus)": "Help the viewer see THEMSELVES wearing this — relatable model, aspirational but achievable lifestyle",
+            "❤️ Emotional Anchoring (Liebe, Erinnerung, Meilenstein)": "Anchor to emotions — love, memory, milestone. The jewelry represents a FEELING, not just an object",
+            "💰 Value Framing (Preis im Kontext: 'weniger als 1€/Tag')": "Frame the value — show what you GET, not what you pay. Emphasize quality-to-price ratio",
+        }
+        active_triggers = [trigger_details.get(t, "") for t in ad_psych_triggers if t in trigger_details]
+        if active_triggers:
+            psych_instr = "CONVERSION PSYCHOLOGY:\n" + "\n".join(f"- {t}" for t in active_triggers)
+
     # Build the full prompt
     prompt = f"""FACEBOOK / INSTAGRAM AD CREATIVE — {ad_ar}
 
@@ -1397,13 +1527,17 @@ PRODUCT: '{product}'
 {personalization_instr}
 {dimensions_instr}
 {season_instr}
+{funnel_instr}
+{hook_instr}
 
 SKIN: Realistic skin with natural texture, visible pores, subtle imperfections. NO airbrushed, plastic, or CGI-looking skin.
 
 {"TEXT ELEMENTS TO INCLUDE IN THE IMAGE:" if text_elements else ""}
 {chr(10).join(text_elements)}
+{trust_badges_instr}
 {f"TYPOGRAPHY: Use a {font_instr} font style. Text must be HIGH CONTRAST against the background, easily readable at small sizes (mobile phone viewing). Kerning and spacing should be professional. If headline and subline are present, use clear size hierarchy." if text_elements else ""}
 {"SPELLING — CRITICAL: All text rendered on the image MUST be spelled correctly. Double-check every word before rendering. Common German words that MUST be correct: 'Versand' (NOT Vershand), 'Geschenk' (NOT Geschnek), 'personalisierbar' (NOT personalisirbar), 'Halskette' (NOT Halskete), 'Anhänger' (NOT Anhenger), 'kostenlos' (NOT kostelos), 'einzigartig' (NOT einzigarig), 'handgefertigt' (NOT handgefertgt). If any text is in German, ensure PERFECT German spelling and grammar." if text_elements else ""}
+{psych_instr}
 
 AD CREATIVE REQUIREMENTS:
 - The image must work as a standalone ad — it should communicate the product and value proposition visually
@@ -1430,8 +1564,80 @@ QUALITY: 8K resolution, professional advertising photography, editorial quality,
     return "\n".join(cleaned).strip()
 
 
+def build_carousel_prompts():
+    """Build a set of prompts for a Facebook/Instagram Carousel Ad."""
 
-def build_prompt_local():
+    base_prompt = build_ad_creative_prompt()
+
+    # Story type determines what each slide shows
+    story_slides = {
+        "🎬 Produkt-Journey (Detail → Am Model → Lifestyle → CTA)": [
+            "CAROUSEL SLIDE 1 — HOOK/DETAIL: Extreme close-up macro shot of the jewelry. Show the finest details — texture, engraving, gemstone facets, metal finish. This slide STOPS THE SCROLL with beauty.",
+            "CAROUSEL SLIDE 2 — WORN: Medium close-up of the jewelry being worn by a model. Show how it looks on a real person — natural, elegant, desirable. Focus on the neckline/hand area with the product.",
+            "CAROUSEL SLIDE 3 — LIFESTYLE: Wide lifestyle shot. The model wearing the jewelry in an aspirational setting — café, rooftop, sun-drenched terrace. The jewelry is part of a complete, desirable life.",
+            "CAROUSEL SLIDE 4 — CTA: Clean product shot on minimal background with clear call-to-action text overlay. This slide drives the click. Product centered, text prominent.",
+            "CAROUSEL SLIDE 5 — BONUS/OFFER: Gift packaging or special offer visual. Show the beautiful box/packaging or display a limited-time discount. Final push to convert.",
+        ],
+        "💝 Emotionale Story (Geschenk-Moment Schritt für Schritt)": [
+            "CAROUSEL SLIDE 1 — ANTICIPATION: Beautiful gift box, wrapped with ribbon, perhaps with hands about to open it. Build anticipation and curiosity.",
+            "CAROUSEL SLIDE 2 — REVEAL: The moment of opening — the jewelry revealed in its box. Sparkle, light catching the surface. The 'wow' moment.",
+            "CAROUSEL SLIDE 3 — JOY: The emotional reaction — the recipient's face showing genuine happiness, surprise, or touched emotion while holding/wearing the piece.",
+            "CAROUSEL SLIDE 4 — WORN: The jewelry now being worn proudly. A candid moment of the person admiring it, looking in a mirror, or being complimented.",
+            "CAROUSEL SLIDE 5 — CTA: Product on clean background with text: the product name, key feature (e.g. 'personalisierbar'), and strong call-to-action.",
+        ],
+        "🎨 Varianten-Showcase (Farben / Styles nebeneinander)": [
+            "CAROUSEL SLIDE 1 — HERO: The main/bestseller variant of the product, beautifully lit, on a clean background. The 'star' of the collection.",
+            "CAROUSEL SLIDE 2 — VARIANT A: Second color/style variant. Same composition angle for visual consistency, different color (e.g. rosegold).",
+            "CAROUSEL SLIDE 3 — VARIANT B: Third variant. Maintain the same visual style. Show diversity of the collection.",
+            "CAROUSEL SLIDE 4 — GROUP: All variants together in one shot — arranged elegantly side by side. Shows the full range available.",
+            "CAROUSEL SLIDE 5 — CTA: Model wearing one variant, with text encouraging to 'find your color' or 'choose your style'. Call-to-action.",
+        ],
+        "📖 Feature-Walkthrough (Material → Gravur → Verpackung → Preis)": [
+            "CAROUSEL SLIDE 1 — MATERIAL: Extreme close-up showing material quality — the shine of gold, the texture of sterling silver. Text overlay: material name and quality (e.g. '925 Sterling Silver').",
+            "CAROUSEL SLIDE 2 — CRAFT/DETAIL: Close-up of the craftsmanship — engraving, stone setting, chain links. Text: 'Handgefertigt' or key craft detail.",
+            "CAROUSEL SLIDE 3 — PACKAGING: The product in its premium packaging — gift box, velvet pouch, branded elements. Shows the complete gifting experience.",
+            "CAROUSEL SLIDE 4 — WORN: The product being worn, showing how it looks in real life. Relatable, aspirational.",
+            "CAROUSEL SLIDE 5 — PRICE/CTA: Product with price displayed prominently. Any offer (free shipping, discount code). Strong CTA button.",
+        ],
+        "⭐ Social Proof Carousel (Kundenbild → Review → Produkt → CTA)": [
+            "CAROUSEL SLIDE 1 — CUSTOMER: Authentic-looking customer photo (UGC-style) — someone wearing the jewelry in a casual, real-life setting. Not overly styled.",
+            "CAROUSEL SLIDE 2 — REVIEW: Clean card-style layout with a 5-star review quote. Product small in corner. The review text is the hero.",
+            "CAROUSEL SLIDE 3 — PRODUCT: Professional product shot — the item itself, beautifully lit, showing exactly what they'll receive.",
+            "CAROUSEL SLIDE 4 — STATS: Social proof numbers — '1000+ glückliche Kunden', '4.9/5 Sterne', 'Bestseller 2025'. Clean infographic style.",
+            "CAROUSEL SLIDE 5 — CTA: Product with offer and strong CTA. 'Jetzt selbst überzeugen' or similar.",
+        ],
+        "🔍 Zoom-Reveal (Weit → Nah → Makro → Am Model)": [
+            "CAROUSEL SLIDE 1 — WIDE: Full scene — model in a beautiful setting, jewelry barely visible. Establishes mood and aspiration. Curiosity: what is she wearing?",
+            "CAROUSEL SLIDE 2 — MEDIUM: Closer — portrait shot, the jewelry now visible on the neck/hand. Starting to see the design.",
+            "CAROUSEL SLIDE 3 — CLOSE: Close-up of just the jewelry area — the pendant on the skin, the ring on the finger. Details becoming clear.",
+            "CAROUSEL SLIDE 4 — MACRO: Extreme macro — individual chain links, gemstone facets, engraving letters. Maximum detail and beauty.",
+            "CAROUSEL SLIDE 5 — CTA: Back to the full product shot with overlay text. Name, price, CTA. The viewer now appreciates every detail.",
+        ],
+    }
+
+    slides = story_slides.get(ad_carousel_story, story_slides["🎬 Produkt-Journey (Detail → Am Model → Lifestyle → CTA)"])
+    slides = slides[:ad_carousel_count]
+
+    # If CTA on last slide is off, replace last slide instruction
+    if not ad_carousel_cta_last and len(slides) > 1:
+        slides[-1] = slides[-1].replace("CTA:", "FINAL:").replace("call-to-action", "closing visual")
+
+    # Build individual prompts for each slide
+    carousel_prompts = []
+    for i, slide_instr in enumerate(slides):
+        slide_prompt = f"""{base_prompt}
+
+--- CAROUSEL CONTEXT ---
+This is SLIDE {i+1} of {ad_carousel_count} in a Facebook/Instagram Carousel Ad.
+{slide_instr}
+
+CAROUSEL CONSISTENCY: All slides must share the same overall color palette, lighting mood, and brand feel.
+The visual style must be CONSISTENT across all slides so they look like they belong together as a set.
+Format: 1:1 (Square) — standard for Facebook/Instagram Carousel."""
+
+        carousel_prompts.append(slide_prompt)
+
+    return carousel_prompts
     """Build prompt locally using Jinja2 template — no API needed."""
 
     # Aspect ratio text
@@ -2500,15 +2706,44 @@ if use_ad_creative:
 
     if "last_ad_prompt" not in st.session_state:
         st.session_state.last_ad_prompt = None
+    if "last_carousel_prompts" not in st.session_state:
+        st.session_state.last_carousel_prompts = None
 
-    if st.button("🎯 AD CREATIVE PROMPT GENERIEREN"):
+    # Different button for carousel vs single
+    if ad_carousel:
+        btn_text = f"🎠 CAROUSEL AD ({ad_carousel_count} SLIDES) GENERIEREN"
+    else:
+        btn_text = "🎯 AD CREATIVE PROMPT GENERIEREN"
+
+    if st.button(btn_text):
         if not product:
             st.warning("Bitte ein Produkt / Thema eingeben (im Tab 'Format & Produkt')!")
+        elif ad_carousel:
+            # --- CAROUSEL MODE ---
+            with st.spinner(f"Baue {ad_carousel_count} Carousel-Slide Prompts..."):
+                carousel_prompts = build_carousel_prompts()
+
+            st.session_state.last_carousel_prompts = carousel_prompts
+            st.session_state.last_ad_prompt = None  # Clear single mode
+            st.success(f"✅ {len(carousel_prompts)} Carousel-Slide Prompts generiert!")
+
+            for idx, cp in enumerate(carousel_prompts):
+                with st.expander(f"📄 Slide {idx+1} Prompt", expanded=(idx == 0)):
+                    st.code(cp, language="text")
+
+            # Save to history
+            st.session_state.prompt_history.append({
+                "time": datetime.now().strftime("%H:%M:%S"),
+                "prompt": f"[CAROUSEL {len(carousel_prompts)} Slides]\n\n" + carousel_prompts[0][:200] + "...",
+                "type": "🎠 Carousel",
+            })
         else:
+            # --- SINGLE AD MODE ---
             with st.spinner("Baue Ad Creative Prompt..."):
                 ad_prompt = build_ad_creative_prompt()
 
             st.session_state.last_ad_prompt = ad_prompt
+            st.session_state.last_carousel_prompts = None  # Clear carousel mode
             st.success("✅ Ad Creative Prompt generiert!")
             st.markdown("### 🎯 Ad Creative Prompt")
             st.code(ad_prompt, language="text")
@@ -2591,4 +2826,65 @@ if use_ad_creative:
 
             if st.button("🗑️ Generierte Ad Creatives löschen"):
                 st.session_state.generated_images = [img for img in st.session_state.generated_images if img["type"] != "ad_creative"]
+                st.rerun()
+
+    # --- GENERATE CAROUSEL WITH GEMINI ---
+    if st.session_state.get("last_carousel_prompts"):
+        st.markdown("---")
+        st.markdown("### 🎠 Carousel mit Gemini generieren")
+        st.caption(f"📌 {len(st.session_state.last_carousel_prompts)} Slides werden nacheinander generiert. Alle im 1:1 Format (Carousel-Standard).")
+
+        if not gemini_key:
+            st.warning("⚠️ Gemini API Key fehlt!")
+
+        if st.button("🚀 CAROUSEL JETZT ERSTELLEN", disabled=not gemini_key):
+            ad_refs = ad_ref_files if use_ad_creative and ad_ref_files else None
+            if ad_refs:
+                st.info(f"📸 {len(ad_refs)} Referenzbild(er) werden bei jeder Slide mitgesendet...")
+
+            carousel_progress = st.progress(0, text="🎠 Carousel wird generiert...")
+
+            for i, slide_prompt in enumerate(st.session_state.last_carousel_prompts):
+                pct = (i + 1) / len(st.session_state.last_carousel_prompts)
+                carousel_progress.progress(pct * 0.95, text=f"🎠 Slide {i+1}/{len(st.session_state.last_carousel_prompts)}...")
+
+                pro_hint = " (Pro)" if "💎 Pro" in model_quality else ""
+                with st.spinner(f"Gemini generiert Slide {i+1}{pro_hint}..."):
+                    img_bytes, mime_type = generate_image_gemini(
+                        slide_prompt, gemini_key,
+                        reference_images=ad_refs, aspect_ratio_str="1:1",
+                        prefer_pro=("💎 Pro" in model_quality)
+                    )
+                if img_bytes:
+                    st.session_state.generated_images.append({
+                        "bytes": img_bytes,
+                        "mime": mime_type,
+                        "type": "carousel",
+                        "slide": i + 1,
+                        "time": datetime.now().strftime("%H:%M:%S"),
+                    })
+
+            carousel_progress.progress(1.0, text="✅ Carousel fertig!")
+
+        # Show carousel images
+        carousel_imgs = [img for img in st.session_state.generated_images if img["type"] == "carousel"]
+        if carousel_imgs:
+            st.markdown("### 🎠 Carousel Slides")
+            st.caption("💡 Lade alle Slides herunter und erstelle damit eine Carousel Ad im Facebook Ads Manager.")
+            cols = st.columns(min(len(carousel_imgs), 5))
+            for idx, img in enumerate(carousel_imgs):
+                with cols[idx % 5]:
+                    slide_num = img.get("slide", idx + 1)
+                    st.image(img["bytes"], caption=f"Slide {slide_num}", use_container_width=True)
+                    ext = "png" if "png" in img["mime"] else "jpg"
+                    st.download_button(
+                        label=f"💾 Slide {slide_num}",
+                        data=img["bytes"],
+                        file_name=f"nano_banana_carousel_slide{slide_num}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{ext}",
+                        mime=img["mime"],
+                        key=f"dl_carousel_{idx}_{img['time']}"
+                    )
+
+            if st.button("🗑️ Carousel-Slides löschen"):
+                st.session_state.generated_images = [img for img in st.session_state.generated_images if img["type"] != "carousel"]
                 st.rerun()
