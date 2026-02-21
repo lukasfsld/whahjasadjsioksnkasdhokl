@@ -1050,6 +1050,13 @@ if use_ad_creative:
             "📖 Educational / Craftsmanship",
             "📱 UGC-Style (User Generated Content)",
             "🌿 Everyday Jewelry / Casual Wear",
+            "🎨 SKU Showcase / Blockfarben",
+            "🤖 AI-Mascot / Cartoon-Headline",
+            "💬 Kommentar-Ad (Fake Review Look)",
+            "📰 Headline-Hero (Text dominiert)",
+            "📷 Instagram-Organic-Story",
+            "🖼️ Collage / Grid-Ad",
+            "🏷️ Clean Produkt + Offer",
         ], help="Der Werbe-Typ bestimmt Bildstil, Textton und Komposition.")
 
         ad_mood = st.selectbox("Stimmung / Mood", [
@@ -1157,6 +1164,10 @@ if use_ad_creative:
             "Lifestyle-Szene + dezenter Text",
             "Produkt auf Hintergrund + große Headline",
             "Vorher/Nachher (ohne/mit Schmuck)",
+            "Textur-Hintergrund (Stoff, Strick, Haut)",
+            "Layering-Shot (mehrere Teile zusammen)",
+            "4er Grid / Collage",
+            "Story-Textfeld-Look (Instagram organic)",
         ])
 
         ad_text_position = st.selectbox("Text-Position", [
@@ -1217,6 +1228,10 @@ if use_ad_creative:
             "Produkt in Bewegung (Glitzern, Licht-Reflexe)",
             "Social Proof (Sternebewertung, Kundenzitat)",
             "Luxus-Setting (Champagner, Rosenblätter, Samt)",
+            "Blockfarben (kräftige Farbflächen stoppen den Scroll)",
+            "Absurdes/Unerwartetes Bild (What the…-Moment)",
+            "Hand hält Produkt (taktil, Instagram-Story-Stil)",
+            "Produkt in Verpackung (Unboxing-Moment)",
         ], help="Der 'Hook' ist das Element das in den ersten 0.5 Sekunden die Aufmerksamkeit fängt.")
 
         ad_trust_signals = st.multiselect("Vertrauens-Signale (auf dem Bild)", [
@@ -1320,6 +1335,83 @@ if use_ad_creative:
             "🔄 Variante: Anderes Model/Styling",
         ], help="Nutze dies um schnell eine visuell verschiedene Variante zu generieren.")
 
+    # --- CURIOSITY GAP MODE ---
+    st.markdown("---")
+    cg_col1, cg_col2 = st.columns(2)
+
+    with cg_col1:
+        st.markdown("**🧲 Curiosity-Gap Modus**")
+        ad_curiosity_gap = st.checkbox("Curiosity-Gap aktivieren", value=False,
+                                        help="Die Ad weckt Neugier statt alles zu verkaufen. Perfekt für TOFU — Klickrate steigt, weil Leute 'mehr wissen wollen'.")
+        if ad_curiosity_gap:
+            st.info(
+                "**Curiosity-Gap = Neugier öffnen, nicht schließen.**\n\n"
+                "Die Ad verspricht eine Lösung/Geheimnis/Überraschung, verrät aber NICHT alles. "
+                "Der Viewer muss klicken um mehr zu erfahren.\n\n"
+                "Funktioniert besonders gut mit:\n"
+                "- Quiz-CTAs ('Mach den 60-Sekunden-Test')\n"
+                "- Advertorial-Funnels ('Artikel lesen')\n"
+                "- Headline-Hero Ads"
+            )
+            ad_curiosity_hook = st.selectbox("Curiosity-Typ", [
+                "❓ Frage stellen (die man beantworten will)",
+                "🔢 Zahl/Statistik (überraschend)",
+                "🚫 Mythos entlarven ('Das macht jeder falsch...')",
+                "🤫 Geheimnis andeuten ('Was Top-Stylistinnen wissen')",
+                "😱 Schock/Überraschung ('Das wusstest du nicht über...')",
+            ], key="curiosity_hook_type")
+        else:
+            ad_curiosity_hook = None
+
+        # --- EMOTION SELECTOR (from analysis: Humor, Fear, Hope, Belonging) ---
+        st.markdown("**🎭 Primäre Emotion**")
+        ad_primary_emotion = st.selectbox("Welche Emotion soll die Ad auslösen?", [
+            "— Automatisch (passend zum Werbe-Typ) —",
+            "😂 Humor (lustig, teilbar, viral)",
+            "😨 Fear / Pain (Problem ansprechen)",
+            "🌟 Hope (Hoffnung, Transformation)",
+            "🤝 Belonging (Zugehörigkeit, 'das ist für mich')",
+            "😍 Desire (Begehren, 'das will ich haben')",
+            "🥺 Nostalgie (Erinnerung, sentimentaler Wert)",
+        ], help="Laut Analyse: Emotion ist der 3. von 4 psychologischen Triggern die jede performante Ad braucht.")
+
+    with cg_col2:
+        # --- AD BRIEF GENERATOR ---
+        st.markdown("**📋 Ad Brief Generator**")
+        ad_generate_brief = st.checkbox("Ad Brief als Text generieren", value=False,
+                                         help="Generiert zusätzlich zum Bild ein strukturiertes Ad Brief (Concept, Angle, Persona, Headline, CTA, Visual Direction). Perfekt als Vorlage für dein Team.")
+        if ad_generate_brief:
+            st.info(
+                "Das Ad Brief enthält:\n"
+                "- **Concept:** Die zentrale Idee\n"
+                "- **Creative Type:** Curiosity, Social Proof, USP, etc.\n"
+                "- **Angle:** Welches Problem/Situation\n"
+                "- **Persona:** Für wen genau\n"
+                "- **Headline:** Der Scroll-Stopper\n"
+                "- **CTA:** Nächster Schritt\n"
+                "- **Visual Direction:** Wie soll die Ad aussehen"
+            )
+
+        # --- 4-HEBEL DIVERSITY CHECKER ---
+        st.markdown("**🔀 4-Hebel Diversity Check (Andromeda)**")
+        st.caption("Meta wertet Ads nur als 'echte Diversity' wenn mind. 2-3 Hebel gleichzeitig verändert werden.")
+        diversity_persona = st.checkbox("✅ Persona variiert", value=False, key="div_persona",
+                                         help="Selbes Produkt, anderer Käufer (z.B. Athletin vs. Office-Workerin)")
+        diversity_messaging = st.checkbox("✅ Messaging variiert", value=False, key="div_msg",
+                                           help="Anderer Kaufgrund (z.B. 'Selbstgeschenk' vs. 'Perfektes Geschenk für sie')")
+        diversity_hook = st.checkbox("✅ Hook variiert", value=False, key="div_hook",
+                                      help="Andere Aufmerksamkeits-Methode (Visual vs. Bold Claim vs. Demo)")
+        diversity_format = st.checkbox("✅ Format variiert", value=False, key="div_format",
+                                        help="Anderer Wrapper (UGC, Static, Carousel, Story, Grid)")
+
+        diversity_count = sum([diversity_persona, diversity_messaging, diversity_hook, diversity_format])
+        if diversity_count == 0:
+            st.error("🔴 **0/4 Hebel** — Meta behandelt alles als dieselbe Ad. Hohe CPMs!")
+        elif diversity_count == 1:
+            st.warning("🟡 **1/4 Hebel** — Nicht genug. Nur den Hook zu ändern zählt NICHT als echte Diversity.")
+        elif diversity_count >= 2:
+            st.success(f"🟢 **{diversity_count}/4 Hebel** — Gute Diversity! Meta wertet das als verschiedene Ads. 👍")
+
 
 # --- AD CREATIVE PROMPT BUILDER ---
 def build_ad_creative_prompt():
@@ -1395,6 +1487,71 @@ def build_ad_creative_prompt():
             "The message is: this is jewelry you NEVER take off. It's part of your daily uniform. "
             "Approachable, not aspirational. Real, not glamorous."
         ),
+        "🎨 SKU Showcase / Blockfarben": (
+            "VISUAL STYLE: BLOCKFARBEN-FORMAT — Bild in 3-4 vertikale Farbspalten aufteilen. "
+            "Jede Spalte zeigt eine Produkt-Variante (z.B. Gold, Silber, Roségold) auf eigenem kräftigem Farb-Hintergrund. "
+            "Farbpsychologie: Benutze kontrastreiche, satte Blockfarben — ROT, BEIGE, GRAU, NAVYBLAU, SMARAGD. "
+            "Jede Variante hat einen kleinen Badge oder Label mit dem Namen. "
+            "Produkt am besten IN DER HAND gehalten für taktiles Gefühl. "
+            "KEIN weißer Hintergrund. Die FARBE selbst ist der Scroll-Stopper. "
+            "Denke an eine hochwertige Produkt-Palette, nicht an einen Katalog."
+        ),
+        "🤖 AI-Mascot / Cartoon-Headline": (
+            "VISUAL STYLE: ABSURDES AI-BILD als Scroll-Stopper. Generiere ein aufmerksamkeitsstarkes, "
+            "leicht surreales oder humorvolles Bild das NICHT wie eine typische Schmuck-Ad aussieht. "
+            "RIESIGE, BOLD HEADLINE oben im Bild — provokativ, neugierig machend, oder überraschend. "
+            "Darunter eine kleine Sub-Copy die den Benefit erklärt. Ganz unten ein niedriger CTA (Quiz, Artikel, Shop). "
+            "Das Bild soll den Scroll stoppen WEIL es ungewöhnlich ist — es passt nicht in den Feed und genau DAS ist der Punkt. "
+            "Die Headline QUALIFIZIERT die Zielgruppe, das Bild FÄNGT die Aufmerksamkeit."
+        ),
+        "💬 Kommentar-Ad (Fake Review Look)": (
+            "VISUAL STYLE: SOCIAL-PROOF-KOMMENTAR-LOOK. Aufbau: "
+            "OBEN: Ein 'Kommentar' im Social-Media-Stil — rundes Profilbild links, Name, und 1-2 Sätze Review-Text. "
+            "Wie ein echter Facebook/Instagram-Kommentar gestaltet (mit Sternebewertung). "
+            "MITTE: Vibrantes, attraktives Produktbild als Hauptelement. "
+            "UNTEN: Klarer CTA-Button. "
+            "Das GANZE soll aussehen als hätte ein echter Kunde einen begeisterten Kommentar gepostet "
+            "und das Produkt dazu fotografiert. Authentisch, nicht zu poliert. "
+            "Social Proof rechtfertigt den Kauf — 'wenn es bei dieser Person funktioniert, funktioniert es bei mir'."
+        ),
+        "📰 Headline-Hero (Text dominiert)": (
+            "VISUAL STYLE: DIE HEADLINE IST DER STAR. Riesige, dominante Headline die 40-50% des Bildes einnimmt. "
+            "Die Headline spricht DIREKT den ICP an — ein Problem, eine Emotion, ein Versprechen. "
+            "Das Produkt ist sichtbar aber SEKUNDÄR — auf einem Podest, in Händen die danach greifen, "
+            "oder elegant im unteren Drittel platziert. "
+            "FARBLICH aus einem Guss — ein durchgehendes Farbthema (alles Orange, alles Navy, alles Emerald). "
+            "Die Headline stoppt den Scroll, das Produkt liefert die Lösung. "
+            "Denke an Magazin-Cover oder Werbeplakat, nicht an Produktfoto."
+        ),
+        "📷 Instagram-Organic-Story": (
+            "VISUAL STYLE: Muss aussehen wie ein ORGANISCHER Instagram-Story-Post — KEINE Werbung erkennbar. "
+            "Hand hält das Produkt (die Hand muss zur Zielgruppe passen!). "
+            "Text in Instagram-Story-TEXTFELDERN aufgeteilt — nicht als professionelle Typografie, "
+            "sondern als die Text-Sticker die man in Instagram Stories benutzt. "
+            "Hintergrund: echte Alltagssituation (Café-Tisch, Bettdecke, Schreibtisch, Küche). "
+            "Leicht unscharfer Hintergrund wie bei einem Handy-Foto. "
+            "Verschmilzt mit dem Feed — Leute sollen NICHT sofort merken dass es Werbung ist. "
+            "Erst lesen, dann klicken, dann erst realisieren dass es eine Ad war."
+        ),
+        "🖼️ Collage / Grid-Ad": (
+            "VISUAL STYLE: 4-TEILIGES GRID / COLLAGE. Das Bild in 4 gleiche Quadranten aufteilen: "
+            "OBEN-LINKS: Produkt-Close-Up (Detail, Textur, Material). "
+            "OBEN-RECHTS: Headline oder Key-Benefit als Text auf Farbfläche. "
+            "UNTEN-LINKS: Lifestyle-Bild (Model trägt das Produkt in Alltagssituation). "
+            "UNTEN-RECHTS: Weiterer Benefit oder CTA mit Angebot. "
+            "Alle 4 Quadranten FARBLICH ABGESTIMMT — ein durchgehendes Farbschema. "
+            "Dieses Format ist im Feed UNGEWÖHNLICH und stoppt deshalb den Scroll. "
+            "Mehrere Informationsebenen auf einen Blick."
+        ),
+        "🏷️ Clean Produkt + Offer": (
+            "VISUAL STYLE: MINIMALISTISCH und CLEAN. Produkt auf sauberem, einfarbigem Hintergrund. "
+            "Markenname DOMINANT oben im Bild — groß, klar, selbstbewusst. "
+            "Darunter das Produkt — elegant, zentral, perfekt beleuchtet. "
+            "Unten ein klares Angebot oder USP: Rabatt, 'Waterproof', 'Lifetime Guarantee', 'Free Shipping'. "
+            "KEIN Model, KEINE Lifestyle-Szene, KEINE Ablenkung. "
+            "Die Einfachheit IST der Scroll-Stopper — wenn alle anderen laut und bunt sind, "
+            "sticht das Minimalistische heraus. Für Marken mit starker Wiedererkennbarkeit."
+        ),
     }
     style_instr = type_instructions.get(ad_type, type_instructions["✨ Lifestyle / Aspirational"])
 
@@ -1431,6 +1588,10 @@ def build_ad_creative_prompt():
         "Lifestyle-Szene + dezenter Text": "COMPOSITION: Wide lifestyle scene with the model and product in a beautiful setting. Text will be small and positioned in a corner. Focus is on the aspirational image.",
         "Produkt auf Hintergrund + große Headline": "COMPOSITION: Product floating or placed on a clean background. Lots of negative space for large headline text. Product is centered, background is simple and elegant.",
         "Vorher/Nachher (ohne/mit Schmuck)": "COMPOSITION: Side-by-side or before/after style — left shows a bare neckline/wrist, right shows the same with the jewelry. Transformation and enhancement feel.",
+        "Textur-Hintergrund (Stoff, Strick, Haut)": "COMPOSITION: Product laid on or held against a TEXTURED surface — knitted sweater, linen fabric, silk, raw wood, marble, human skin close-up. The TEXTURE creates a tactile, sensory feeling. The contrast between the jewelry and the surface material highlights the product's quality. Warm, close-up perspective.",
+        "Layering-Shot (mehrere Teile zusammen)": "COMPOSITION: Show multiple jewelry pieces styled TOGETHER — layered necklaces at different lengths, stacked rings, bracelet combinations. The goal is to show how pieces work as an ENSEMBLE to increase average order value. Shot on a model or on a flat-lay surface with elegant styling. Each piece should be individually identifiable.",
+        "4er Grid / Collage": "COMPOSITION: Image divided into a 2x2 GRID with 4 equally-sized quadrants. Each quadrant shows a different aspect: product detail, lifestyle shot, text/benefit, and CTA/offer. All quadrants share a cohesive color palette. Clean dividing lines between sections.",
+        "Story-Textfeld-Look (Instagram organic)": "COMPOSITION: Mimics an Instagram Story layout — full-screen vertical feel, with text placed in what looks like Instagram Story text sticker fields (rounded rectangles with semi-transparent backgrounds). Hand-held product in center. Casual, spontaneous, authentic composition.",
     }
     comp_instr = comp_map.get(ad_composition, "")
 
@@ -1555,6 +1716,10 @@ def build_ad_creative_prompt():
         "Produkt in Bewegung (Glitzern, Licht-Reflexe)": "HOOK: Show the product CATCHING LIGHT — the sparkle, the shimmer, light dancing across metal and gemstones. The visual 'glitter' effect is the scroll-stopper.",
         "Social Proof (Sternebewertung, Kundenzitat)": "HOOK: Lead with SOCIAL PROOF — a star rating, a customer quote, or a 'bestseller' badge. The credibility of others is the first thing the viewer sees.",
         "Luxus-Setting (Champagner, Rosenblätter, Samt)": "HOOK: Create a LUXURY ATMOSPHERE that triggers aspiration — velvet, champagne, rose petals, soft candlelight. The setting itself communicates premium value before the product is even noticed.",
+        "Blockfarben (kräftige Farbflächen stoppen den Scroll)": "HOOK: Use BOLD BLOCK COLORS as the primary scroll-stopper. Large areas of saturated, contrasting color — red, navy, emerald, burnt orange. The COLORS themselves grab attention before the product or text is even registered. Color psychology: viewers process color before shape or text.",
+        "Absurdes/Unerwartetes Bild (What the…-Moment)": "HOOK: Create a 'WHAT THE…' MOMENT — something that does NOT belong in a typical jewelry feed. An unexpected, slightly surreal, or humorous visual that forces a double-take. The absurdity stops the scroll, the headline qualifies the audience. Break the pattern of what people expect to see.",
+        "Hand hält Produkt (taktil, Instagram-Story-Stil)": "HOOK: A HAND HOLDING THE PRODUCT close to camera — tactile, personal, Instagram-Story-style. The hand should match the target audience (age, style, nail color). Natural lighting, casual angle, as if someone just took a quick photo to show a friend. Taktile immediacy is the scroll-stopper.",
+        "Produkt in Verpackung (Unboxing-Moment)": "HOOK: Show the UNBOXING MOMENT — jewelry in beautiful packaging being opened. Gift box with ribbon, tissue paper being pulled back, the first reveal. Triggers anticipation and the dopamine of receiving a gift. Perfect for gift-giving campaigns.",
     }
     hook_instr = hook_map.get(ad_hook, "")
 
@@ -1596,6 +1761,81 @@ def build_ad_creative_prompt():
         }
         angle_instr = angle_map.get(ad_creative_angle, "")
 
+    # Curiosity Gap instruction
+    curiosity_instr = ""
+    if ad_curiosity_gap and ad_curiosity_hook:
+        curiosity_map = {
+            "❓ Frage stellen (die man beantworten will)": (
+                "CURIOSITY GAP — ASK A QUESTION the viewer desperately wants answered. "
+                "The headline should pose a question that's specific to the target audience's pain/desire. "
+                "DO NOT answer the question in the ad. The answer is on the landing page. "
+                "The image should AMPLIFY the curiosity — show the problem or hint at the solution without revealing it."
+            ),
+            "🔢 Zahl/Statistik (überraschend)": (
+                "CURIOSITY GAP — SURPRISING NUMBER/STATISTIC. Lead with a shocking number or data point: "
+                "'97% machen diesen Fehler', '3 Sekunden entscheiden', 'Alle 8 Minuten wird eine verkauft'. "
+                "The number STOPS the scroll because it's unexpected. Don't explain — make them click to learn more."
+            ),
+            "🚫 Mythos entlarven ('Das macht jeder falsch...')": (
+                "CURIOSITY GAP — MYTH BUSTING. The ad challenges a common belief: "
+                "'Das macht fast jeder falsch beim Schmuckkauf', 'Vergiss was du über Silber gelernt hast'. "
+                "Create cognitive dissonance — the viewer thinks they know something, but the ad says they're wrong. "
+                "They MUST click to resolve the discomfort."
+            ),
+            "🤫 Geheimnis andeuten ('Was Top-Stylistinnen wissen')": (
+                "CURIOSITY GAP — INSIDER SECRET. Hint at exclusive knowledge: "
+                "'Was Stylistinnen ihren Kundinnen nie verraten', 'Der Trick den nur Juweliere kennen'. "
+                "Make the viewer feel they're missing out on insider information. Aspirational, exclusive tone."
+            ),
+            "😱 Schock/Überraschung ('Das wusstest du nicht über...')": (
+                "CURIOSITY GAP — SHOCK/SURPRISE. Lead with something unexpected: "
+                "'Das passiert mit deinem Schmuck wenn du DAS machst', 'Warum deine Kette grün wird (und was hilft)'. "
+                "The surprise element forces a double-take. Use a striking image that matches the shock factor."
+            ),
+        }
+        curiosity_instr = curiosity_map.get(ad_curiosity_hook, "")
+
+    # Primary emotion instruction
+    emotion_instr = ""
+    if ad_primary_emotion and "Automatisch" not in ad_primary_emotion:
+        emotion_map = {
+            "😂 Humor (lustig, teilbar, viral)": (
+                "PRIMARY EMOTION: HUMOR. This ad should make the viewer SMILE or LAUGH. "
+                "Use insider jokes for the target audience, playful copy, or an unexpected/absurd visual twist. "
+                "Humor makes ads SHAREABLE — people send funny ads to friends, increasing organic reach. "
+                "Keep it lighthearted, witty, not slapstick. The product remains desirable despite the humor."
+            ),
+            "😨 Fear / Pain (Problem ansprechen)": (
+                "PRIMARY EMOTION: FEAR/PAIN. Directly address a pain point: "
+                "the fear of a bad gift, missing a special moment, jewelry that turns green, cheap-looking accessories. "
+                "Show the PROBLEM first, then position the product as the SOLUTION. "
+                "Don't be aggressive — empathetic pain-point advertising works better than fear-mongering."
+            ),
+            "🌟 Hope (Hoffnung, Transformation)": (
+                "PRIMARY EMOTION: HOPE. Show the TRANSFORMATION — the before and after of owning this piece. "
+                "Hope for a better self, a special moment captured, a new chapter. "
+                "The jewelry represents possibility, change, a fresh start. Uplifting, inspiring, aspirational."
+            ),
+            "🤝 Belonging (Zugehörigkeit, 'das ist für mich')": (
+                "PRIMARY EMOTION: BELONGING. The viewer should think 'this brand GETS me' and 'this is for people LIKE ME'. "
+                "Show someone from the exact target demographic in a relatable situation. "
+                "The styling, setting, and vibe should scream 'this is YOUR tribe'. "
+                "Community feeling, shared identity, 'I finally found my brand'."
+            ),
+            "😍 Desire (Begehren, 'das will ich haben')": (
+                "PRIMARY EMOTION: DESIRE. Make the jewelry look SO desirable that the viewer feels physical wanting. "
+                "Lush lighting on the metal, perfect sparkle, the product shown in its most seductive angle. "
+                "The image should trigger 'I NEED this' not 'that's nice'. Luxurious, covetable, irresistible."
+            ),
+            "🥺 Nostalgie (Erinnerung, sentimentaler Wert)": (
+                "PRIMARY EMOTION: NOSTALGIA. Connect the jewelry to memories, milestones, and sentimental moments. "
+                "A mother touching her daughter's necklace, an old photo beside a new pendant, "
+                "handwriting from a loved one engraved. Warm, golden tones, slightly vintage feel. "
+                "The jewelry is a KEEPER — it holds meaning beyond its material value."
+            ),
+        }
+        emotion_instr = emotion_map.get(ad_primary_emotion, "")
+
     # Build the full prompt
     prompt = f"""FACEBOOK / INSTAGRAM AD CREATIVE — {ad_ar}
 
@@ -1633,6 +1873,8 @@ SKIN: Realistic skin with natural texture, visible pores, subtle imperfections. 
 {"SPELLING — CRITICAL: All text rendered on the image MUST be spelled correctly. Double-check every word before rendering. Common German words that MUST be correct: 'Versand' (NOT Vershand), 'Geschenk' (NOT Geschnek), 'personalisierbar' (NOT personalisirbar), 'Halskette' (NOT Halskete), 'Anhänger' (NOT Anhenger), 'kostenlos' (NOT kostelos), 'einzigartig' (NOT einzigarig), 'handgefertigt' (NOT handgefertgt). If any text is in German, ensure PERFECT German spelling and grammar." if text_elements else ""}
 {psych_instr}
 {angle_instr}
+{curiosity_instr}
+{emotion_instr}
 
 AD CREATIVE REQUIREMENTS:
 - The image must work as a standalone ad — it should communicate the product and value proposition visually
@@ -1640,6 +1882,14 @@ AD CREATIVE REQUIREMENTS:
 - The product (jewelry) must be clearly visible and desirable
 - Professional advertising quality — this should look like it was produced by a creative agency
 - No generic stock photo feel — make it specific, intentional, and polished
+
+JEWELRY-SPECIFIC BEST PRACTICES (from top-performing ads analysis):
+- ALWAYS show jewelry ON THE BODY (am Hals, am Finger, am Handgelenk) — NEVER isolated on white background
+- Use WARM TONES: Gold, Beige, Creme, Nude — creates premium feeling
+- TEXTURE as background: fabric, knit, skin — creates tactile appeal
+- ORGANIC FEEL beats STUDIO LOOK — 'a friend sent me this' outperforms polished editorial
+- MINIMAL COPY on image — often just brand name + one info (offer or collection name)
+- LAYERING SHOTS increase average order value — show multiple pieces worn together
 
 NEGATIVE: no blurry text, no illegible fonts, no cluttered composition, no cheap-looking graphics, no watermarks, no AI-generated artifacts, no deformed hands or fingers
 
@@ -3060,6 +3310,62 @@ if use_ad_creative:
                 file_name=f"nano_banana_ad_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
                 mime="text/plain"
             )
+
+            # --- AD BRIEF GENERATOR OUTPUT ---
+            if ad_generate_brief:
+                st.markdown("---")
+                st.markdown("### 📋 Ad Brief")
+
+                # Build brief from current settings
+                brief_persona = ad_target.split("(")[0].strip() if "(" in ad_target else ad_target
+                brief_type = ad_type.split(" ", 1)[1] if " " in ad_type else ad_type
+                brief_hook_clean = ad_hook if ad_hook else "—"
+                brief_funnel = "TOFU" if "TOFU" in ad_funnel else ("MOFU" if "MOFU" in ad_funnel else "BOFU")
+                brief_emotion = ad_primary_emotion.split(" ", 1)[1] if ad_primary_emotion and "Automatisch" not in ad_primary_emotion else "Automatisch"
+
+                brief_text = f"""📋 AD BRIEF — {product}
+{'='*50}
+
+📌 CONCEPT:       {brief_type} Ad für {product}
+🎨 CREATIVE TYPE:  {brief_type}
+🎯 FUNNEL STAGE:   {brief_funnel}
+👤 PERSONA:        {brief_persona}
+🎭 EMOTION:        {brief_emotion}
+
+📰 HEADLINE:       {ad_headline if ad_headline else '(noch nicht definiert)'}
+📝 SUBLINE:        {ad_subline if ad_subline else '—'}
+🔘 CTA:            {ad_cta if ad_cta else '—'}
+🏷️ ANGEBOT:        {ad_offer if ad_offer else '—'}
+
+🎣 HOOK:           {brief_hook_clean}
+🖼️ LAYOUT:         {ad_composition}
+🎨 FARBSCHEMA:     {ad_color_scheme}
+🔤 SCHRIFT:        {ad_font}
+📐 FORMAT:         {ad_format}
+😊 STIMMUNG:       {ad_mood}
+{'🧲 CURIOSITY GAP:  ' + ad_curiosity_hook if ad_curiosity_gap and ad_curiosity_hook else ''}
+
+🔀 DIVERSITY CHECK:
+   Persona:    {'✅' if diversity_persona else '❌'}
+   Messaging:  {'✅' if diversity_messaging else '❌'}
+   Hook:       {'✅' if diversity_hook else '❌'}
+   Format:     {'✅' if diversity_format else '❌'}
+   Score:      {diversity_count}/4 Hebel
+
+{'='*50}
+💡 VISUAL DIRECTION:
+{ad_composition} mit {ad_color_scheme}.
+{brief_type} Stil. Hook: {brief_hook_clean}.
+Zielgruppe: {brief_persona}.
+"""
+                st.code(brief_text, language="text")
+                st.download_button(
+                    label="📋 Ad Brief speichern (.txt)",
+                    data=brief_text,
+                    file_name=f"ad_brief_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+                    mime="text/plain",
+                    key="dl_brief"
+                )
 
     # --- GENERATE AD IMAGE WITH GEMINI ---
     if st.session_state.get("last_ad_prompt"):
