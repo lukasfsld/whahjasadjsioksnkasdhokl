@@ -409,19 +409,90 @@ with c_pose:
     else:
         candid_moment = None
         with p1:
-            pose_options = ["Standing Upright (Power Pose)", "Relaxed Leaning",
-                            "Walking towards Camera", "Sitting Elegantly",
-                            "Dynamic Action", "Over the Shoulder"]
-            pose = st.selectbox("Körperhaltung", pose_options,
-                                index=pose_options.index(get_val("pose", "Standing Upright (Power Pose)"))
-                                if get_val("pose", "") in pose_options else 0)
+            pose_category = st.selectbox("Pose-Kategorie", [
+                "🧍 Stehend",
+                "🪑 Sitzend",
+                "🚶 Gehend / Bewegung",
+                "🧘 Boden / Liegend",
+                "💃 Dynamisch / Fashion",
+                "📐 Angelehnt / Gelehnt",
+            ], key="pose_cat")
+
+            pose_map = {
+                "🧍 Stehend": [
+                    "Standing Upright — aufrecht, selbstbewusst, Gewicht auf beiden Beinen",
+                    "Standing Contrapposto — Gewicht auf einem Bein, Hüfte leicht verschoben, klassisch",
+                    "Standing Breitbeinig — Beine schulterbreit, kraftvoll, selbstsicher",
+                    "Standing Grätsche — Beine weit auseinander, dominant, editorial",
+                    "Standing Überkreuzt — ein Bein vor dem anderen gekreuzt, lässig",
+                    "Standing Auf Zehenspitzen — auf den Zehenspitzen, elegant, tänzerisch",
+                    "Standing Hände in Hüfte — Hände auf den Hüften, Power Pose",
+                    "Standing Arme verschränkt — Arme vor der Brust verschränkt, cool",
+                    "Standing Ein Arm oben — eine Hand im Haar oder am Kopf, entspannt",
+                    "Standing Hände hinter Kopf — beide Arme hoch, Ellbogen nach außen, offen",
+                ],
+                "🪑 Sitzend": [
+                    "Sitting Elegant — auf Stuhl/Hocker, Rücken gerade, Beine übereinander",
+                    "Sitting Schneidersitz — auf dem Boden im Schneidersitz, entspannt, gemütlich",
+                    "Sitting Knie angezogen — Knie zur Brust, Arme um die Knie, intim",
+                    "Sitting Beine ausgestreckt — auf dem Boden, Beine gerade nach vorne",
+                    "Sitting Seitlich — seitlich auf einer Fläche, Beine zur Seite, elegant",
+                    "Sitting Auf Kante — auf Tischkante/Fensterbank, Beine baumelnd, lässig",
+                    "Sitting Stuhl verkehrt — rittlings auf Stuhl sitzend, Arme auf Lehne, frech",
+                    "Sitting Hocker — auf einem hohen Barhocker, Beine gekreuzt, modisch",
+                ],
+                "🚶 Gehend / Bewegung": [
+                    "Walking towards Camera — auf die Kamera zugehend, selbstbewusst",
+                    "Walking away — von der Kamera weg, Rückenansicht, mysteriös",
+                    "Walking Seitlich — seitlich an der Kamera vorbei, Profil, dynamisch",
+                    "Mid-Step Freeze — mitten im Schritt eingefroren, Bein in der Luft",
+                    "Running leicht — leichtes Joggen/Laufen, Haare in Bewegung",
+                    "Treppe steigend — auf einer Treppe nach oben gehend",
+                    "Drehung — sich umdrehend, Blick über die Schulter, Stoff fließt",
+                ],
+                "🧘 Boden / Liegend": [
+                    "Lying on back — auf dem Rücken liegend, Haare ausgebreitet",
+                    "Lying on side — auf der Seite liegend, Kopf auf Hand gestützt",
+                    "Lying on stomach — auf dem Bauch, Kinn auf Händen, verspielt",
+                    "Kneeling — kniend, aufrecht, edel, zeremoniell",
+                    "Kneeling Zurückgelehnt — kniend und nach hinten gelehnt, dramatisch",
+                    "Hocke / Squat — tiefe Hocke, urban, streetwear-Vibe",
+                    "Boden Seitlich — seitlich am Boden, ein Bein angewinkelt, lässig-elegant",
+                ],
+                "💃 Dynamisch / Fashion": [
+                    "Fashion Lunge — großer Ausfallschritt nach vorne, dramatisch",
+                    "Jump / Sprung — in der Luft, Haare und Kleidung fliegen, energetisch",
+                    "Wind Pose — Körper gegen den Wind gelehnt, Haare wehen, editorial",
+                    "Tanz-Pose — tänzerische Körperhaltung, ein Bein angehoben, arme fließend",
+                    "Hand an Gesicht — Hand zart am Kinn/Wange, nachdenklich, modisch",
+                    "Jacke/Mantel über Schulter — Kleidungsstück lässig über eine Schulter",
+                    "Haare werfen — Kopf zur Seite, Haare in Bewegung, glamourös",
+                    "Rücken durchgestreckt — starke Rückenbeuge, High-Fashion, skulptural",
+                ],
+                "📐 Angelehnt / Gelehnt": [
+                    "Relaxed Leaning — an Wand gelehnt, entspannt, lässig",
+                    "Nach vorne gelehnt — Oberkörper nach vorne gebeugt, Hände auf Knien, intensiv",
+                    "Schulter an Wand — mit einer Schulter an der Wand, cool, seitlich",
+                    "Rücken an Wand — mit dem Rücken an Wand/Tür gelehnt, frontal",
+                    "An Geländer gelehnt — auf ein Geländer/Zaun gestützt, outdoor-Vibe",
+                    "Auf Tisch gestützt — Hände auf einem Tisch, nach vorne gebeugt, direkt",
+                    "Ellbogen auf Knie — sitzend, Ellbogen auf Knie gestützt, nachdenklich",
+                ],
+            }
+
+            poses_for_cat = pose_map.get(pose_category, pose_map["🧍 Stehend"])
+            pose = st.selectbox("Pose", poses_for_cat,
+                                index=0)
+
         with p2:
-            gaze_options = ["Straight into Camera", "Looking away (Dreamy)", "Looking down", "Looking up"]
+            gaze_options = ["Straight into Camera", "Looking away (Dreamy)", "Looking down", "Looking up",
+                            "Augen geschlossen (peaceful)", "Blick über die Schulter", "Blick zur Seite (Profil)"]
             gaze = st.selectbox("Blickrichtung", gaze_options,
                                 index=gaze_options.index(get_val("gaze", "Straight into Camera"))
                                 if get_val("gaze", "") in gaze_options else 0)
         with p3:
-            expr_options = ["Neutral & Cool", "Confident Smile", "Laughing", "Fierce/Intense", "Seductive"]
+            expr_options = ["Neutral & Cool", "Confident Smile", "Laughing", "Fierce/Intense", "Seductive",
+                            "Nachdenklich / Verträumt", "Überrascht / Staunend", "Entspannt / Zufrieden"]
             expression = st.selectbox("Gesichtsausdruck", expr_options,
                                       index=expr_options.index(get_val("expression", "Neutral & Cool"))
                                       if get_val("expression", "") in expr_options else 0)
