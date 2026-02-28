@@ -9,6 +9,7 @@ POSE: {{ pose }}. Unposed, natural body language. Genuine {{ candid_moment }} ex
 {% else -%}
 POSE: {{ pose }}. GAZE: {{ gaze }}. EXPRESSION: {{ expression }}.
 {% endif -%}
+{% if model_view %}MODEL VIEW: {{ model_view }} — photograph the model from this specific angle/direction.{% endif %}
 
 MAKEUP: {{ makeup }}.
 {{ outfit_instr }}
