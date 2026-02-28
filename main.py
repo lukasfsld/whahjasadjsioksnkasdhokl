@@ -426,8 +426,24 @@ with c_pose:
                                       index=expr_options.index(get_val("expression", "Neutral & Cool"))
                                       if get_val("expression", "") in expr_options else 0)
 
+    # Model view / rotation
+    model_view_options = [
+        "— Automatisch —",
+        "Frontal (von vorne)",
+        "Leicht gedreht (3/4 Ansicht)",
+        "Seitenprofil (von der Seite)",
+        "Rückenansicht (von hinten)",
+        "Über-die-Schulter",
+        "Schräg von hinten (3/4 Rücken)",
+        "Selfie-Perspektive (von oben)",
+    ]
+    model_view_campaign = st.selectbox("🔄 Model-Ansicht / Drehung", model_view_options,
+                                        index=0,
+                                        help="Aus welcher Richtung wird das Model gezeigt? Wichtig für Halsketten (Rücken), Ohrringe (Seite).")
+
     wind_options = ["Static", "Soft Breeze", "Strong Wind"]
     wind = "Natural movement" if use_candid else st.select_slider(
+
         "Haar-Dynamik", options=wind_options, value=get_val("wind", "Soft Breeze")
         if get_val("wind", "Soft Breeze") in wind_options else "Soft Breeze")
 
@@ -1178,6 +1194,18 @@ if use_ad_creative:
             "Minimal (nur kleiner CTA-Button)",
         ])
 
+        st.markdown("**🔄 Model-Ansicht / Drehung**")
+        ad_model_view = st.selectbox("Model-Perspektive", [
+            "— Automatisch (passend zum Layout) —",
+            "👤 Frontal (von vorne, Blick zur Kamera)",
+            "👤 Leicht gedreht (3/4 Ansicht, schräg)",
+            "👤 Seitenprofil (komplett von der Seite)",
+            "👤 Rückenansicht (von hinten, Halskette/Rücken sichtbar)",
+            "👤 Über-die-Schulter (Rücken + Gesicht teils sichtbar)",
+            "👤 Schräg von hinten (3/4 Rücken)",
+            "🤳 Selfie-Perspektive (Arm ausgestreckt, leicht von oben)",
+        ], help="Bestimmt aus welcher Richtung das Model gezeigt wird. Besonders wichtig für Halsketten (Rücken zeigt Verschluss) und Ohrringe (Seitenprofil).")
+
         ad_color_scheme = st.selectbox("Farbschema", [
             "Brand Gold (#FFD700 auf Dunkel)",
             "Weiß & Clean (heller Hintergrund)",
@@ -1580,6 +1608,49 @@ def build_ad_creative_prompt():
     }
     target_instr = target_map.get(ad_target, "")
 
+    # Model view / rotation instruction
+    model_view_instr = ""
+    if ad_model_view and "Automatisch" not in ad_model_view:
+        view_map = {
+            "👤 Frontal (von vorne, Blick zur Kamera)": (
+                "MODEL VIEW: FRONTAL — Model facing directly toward the camera. "
+                "Straight-on perspective, full face visible. Jewelry on the front of the body is prominently displayed."
+            ),
+            "👤 Leicht gedreht (3/4 Ansicht, schräg)": (
+                "MODEL VIEW: THREE-QUARTER ANGLE — Model turned approximately 30-45° to one side. "
+                "Face still mostly visible but at an angle. This perspective adds depth and dimension. "
+                "One side of the jewelry is more prominent — ideal for showing how necklaces drape."
+            ),
+            "👤 Seitenprofil (komplett von der Seite)": (
+                "MODEL VIEW: FULL SIDE PROFILE — Model viewed completely from the side, 90° angle. "
+                "Only one side of the face visible (silhouette-like). Perfect for earrings, jawline jewelry, "
+                "and showing the chain line of a necklace from the side."
+            ),
+            "👤 Rückenansicht (von hinten, Halskette/Rücken sichtbar)": (
+                "MODEL VIEW: BACK VIEW — Model photographed from BEHIND. Back of the neck, shoulders, and spine visible. "
+                "Hair pulled up or to one side to reveal the nape of the neck. "
+                "Shows: necklace clasp, back of pendant, chain draping along the back. "
+                "Backless dress or low-back top to maximize skin and jewelry visibility. Elegant, intimate perspective."
+            ),
+            "👤 Über-die-Schulter (Rücken + Gesicht teils sichtbar)": (
+                "MODEL VIEW: OVER-THE-SHOULDER — Camera behind the model, looking over one shoulder. "
+                "Back visible, face partially turned toward camera (mystery, allure). "
+                "Shows the jewelry from behind while keeping a human connection through the partial face view."
+            ),
+            "👤 Schräg von hinten (3/4 Rücken)": (
+                "MODEL VIEW: THREE-QUARTER BACK — Model turned away from camera at about 45°. "
+                "Back and side of the body visible, jawline/ear partially visible. "
+                "Shows how the jewelry looks from a natural 'walking away' perspective."
+            ),
+            "🤳 Selfie-Perspektive (Arm ausgestreckt, leicht von oben)": (
+                "MODEL VIEW: SELFIE PERSPECTIVE — Shot from slightly above as if the model is taking a selfie. "
+                "One arm extended (holding invisible phone), slight upward angle. "
+                "Casual, authentic, Instagram-native perspective. "
+                "Necklace and décolleté area prominently visible from this top-down angle."
+            ),
+        }
+        model_view_instr = view_map.get(ad_model_view, "")
+
     # Composition instructions
     comp_map = {
         "Close-Up Produkt + Text oben/unten": "COMPOSITION: Tight close-up of the jewelry product filling the center of the frame. Leave clear space at top and bottom for text overlay. Clean, uncluttered background.",
@@ -1848,6 +1919,7 @@ Do NOT change the shape, color, material, texture, chain style, pendant design, 
 The product must look EXACTLY like the reference — as if the same physical item was photographed again.
 This is a REAL product being advertised — customers will see the actual item. Any deviation is FALSE ADVERTISING.
 {target_instr}
+{model_view_instr}
 
 {style_instr}
 
@@ -2089,6 +2161,7 @@ def build_prompt_local():
         pose=pose,
         gaze=gaze,
         expression=expression,
+        model_view=model_view_campaign if model_view_campaign and "Automatisch" not in model_view_campaign else "",
         candid_moment=candid_moment or "",
         makeup=makeup,
         outfit_instr=outfit_instr,
