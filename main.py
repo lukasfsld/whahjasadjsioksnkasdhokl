@@ -481,7 +481,7 @@ with t3:
                              index=film_options.index(get_val("film_look", "Standard Commercial"))
                              if get_val("film_look", "") in film_options else 0)
 
-    frame_options = ["Extreme Close-Up", "Portrait", "Medium Shot", "Full Body"]
+    frame_options = ["Extreme Close-Up", "Portrait", "Medium Shot", "Full Body (Kopf bis Fuß)"]
     framing = st.selectbox("Ausschnitt", frame_options,
                            index=frame_options.index(get_val("framing", "Portrait"))
                            if get_val("framing", "") in frame_options else 1)
