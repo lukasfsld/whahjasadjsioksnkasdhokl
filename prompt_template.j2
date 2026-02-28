@@ -21,7 +21,17 @@ PRODUCT: {{ prod_instr }}
 LIGHTING: {{ lighting }}.
 {% if lighting_details %}{{ lighting_details }}{% endif %}
 
+{% if 'Full Body' in framing -%}
+CAMERA: FULL BODY framing — the ENTIRE body must be visible from the TOP OF THE HEAD to the FEET/SHOES touching the ground. Do NOT crop at the waist, hips, knees, or ankles. Both feet MUST be fully visible in the frame. Leave a small margin of space above the head and below the feet. The model's full silhouette — head, torso, arms, legs, feet — must be completely contained within the image. This is NOT a medium shot. Shot on {{ lens }}.
+{% elif 'Extreme' in framing -%}
+CAMERA: Extreme Close-Up framing — tight crop on face/product detail only. Shot on {{ lens }}.
+{% elif 'Portrait' in framing -%}
+CAMERA: Portrait framing — head and shoulders to mid-chest. Shot on {{ lens }}.
+{% elif 'Medium' in framing -%}
+CAMERA: Medium Shot framing — from head to approximately waist/hip level. Shot on {{ lens }}.
+{% else -%}
 CAMERA: {{ framing }} framing, shot on {{ lens }}.
+{% endif -%}
 {% if aperture %}Aperture: {{ aperture }}.{% endif %}
 FILM STOCK: {{ film_look }}.
 
