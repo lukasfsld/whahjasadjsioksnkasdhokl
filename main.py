@@ -381,6 +381,33 @@ with col4:
     use_imperfections = st.checkbox("Natural Imperfections", value=get_val("use_imperfections", False),
                                    help="Asymmetrie und kleine Makel.")
 
+    # --- MODEL REFERENCE IMAGES ---
+    st.markdown("---")
+    st.markdown("**📸 Model-Referenzbilder (optional)**")
+    st.caption("Lade bis zu 5 Fotos hoch wie das Model aussehen soll. Gemini versucht Gesicht, Körperbau und Stil 1:1 zu übernehmen.")
+    model_ref_files = st.file_uploader(
+        "Model-Referenzbilder (max. 5)",
+        type=["png", "jpg", "jpeg", "webp"],
+        accept_multiple_files=True,
+        key="model_ref_upload",
+        help="💡 Tipp: Lade Bilder aus verschiedenen Winkeln hoch (frontal, seitlich, Ganzkörper) für beste Ergebnisse."
+    )
+    if model_ref_files and len(model_ref_files) > 5:
+        st.warning("⚠️ Maximal 5 Bilder! Nur die ersten 5 werden verwendet.")
+        model_ref_files = model_ref_files[:5]
+    if model_ref_files:
+        ref_cols = st.columns(min(len(model_ref_files), 5))
+        for idx, f in enumerate(model_ref_files):
+            ref_cols[idx].image(f, caption=f"Ref {idx+1}", width=100)
+        st.info(
+            f"✅ **{len(model_ref_files)} Model-Referenz(en)** geladen.\n\n"
+            "Das Model im generierten Bild soll **1:1 wie auf diesen Fotos** aussehen — "
+            "gleiches Gesicht, gleiche Gesichtszüge, gleicher Körperbau, gleicher Stil. "
+            "Die Referenzbilder werden zusammen mit dem Prompt an Gemini geschickt."
+        )
+    else:
+        model_ref_files = []
+
 
 # --- 2. KLEIDUNG & POSE ---
 with tab_pose:
@@ -3234,15 +3261,45 @@ if st.session_state.last_image_prompt:
             st.warning("⚠️ Gemini API Key fehlt! Füge ihn in der Sidebar oder in Streamlit Secrets hinzu.")
 
         if st.button("🚀 JETZT ERSTELLEN MIT GEMINI", disabled=not gemini_key):
-            # Collect campaign reference images if any
-            ref_imgs = campaign_ref_files if wear_product and campaign_ref_files else None
-            if ref_imgs:
-                st.info(f"📸 {len(ref_imgs)} Referenzbild(er) werden mitgesendet...")
+            # Collect ALL reference images: model refs + product refs
+            all_ref_imgs = []
+
+            # Model reference images (with instruction prefix)
+            if model_ref_files:
+                st.info(f"👤 {len(model_ref_files)} Model-Referenzbild(er) werden mitgesendet...")
+                all_ref_imgs.extend(model_ref_files)
+
+            # Product reference images
+            if wear_product and campaign_ref_files:
+                st.info(f"📸 {len(campaign_ref_files)} Produkt-Referenzbild(er) werden mitgesendet...")
+                all_ref_imgs.extend(campaign_ref_files)
+
+            ref_imgs = all_ref_imgs if all_ref_imgs else None
+
+            # Add model reference instruction to prompt if model refs exist
+            active_prompt = st.session_state.last_image_prompt
+            if model_ref_files:
+                model_ref_instruction = (
+                    "\n\nMODEL REFERENCE — ABSOLUTE RULE: "
+                    f"The first {len(model_ref_files)} reference image(s) show the MODEL/PERSON to use. "
+                    "Reproduce this person 1:1 IDENTICALLY — same face, same facial features, same bone structure, "
+                    "same skin tone, same body type, same proportions. "
+                    "The generated image must look like the EXACT SAME PERSON photographed in a new setting. "
+                    "Do NOT change: face shape, nose, eyes, lips, jawline, eyebrows, skin color, body build, or ANY facial feature. "
+                    "This is the SAME person — not 'similar looking', not 'inspired by', but the IDENTICAL person."
+                )
+                if wear_product and campaign_ref_files:
+                    model_ref_instruction += (
+                        f"\nThe LAST {len(campaign_ref_files)} reference image(s) show the PRODUCT/JEWELRY to use. "
+                        "Reproduce the product 1:1 IDENTICALLY as specified in the product instructions above."
+                    )
+                active_prompt = active_prompt + model_ref_instruction
+
             for i in range(num_images):
                 pro_hint = " ⚠️ Pro: 2-4 Min!" if "💎 Pro" in model_quality else (" 🔀 Hybrid: 2 Schritte" if "🔀 Hybrid" in model_quality else "")
                 with st.spinner(f"Gemini generiert Bild {i+1}/{num_images}...{pro_hint}"):
                     img_bytes, mime_type = smart_generate_image(
-                        st.session_state.last_image_prompt, gemini_key,
+                        active_prompt, gemini_key,
                         reference_images=ref_imgs, aspect_ratio_str=aspect_ratio,
                     )
                 if img_bytes:
@@ -3574,9 +3631,36 @@ Zielgruppe: {brief_persona}.
                 st.warning("⚠️ Gemini API Key fehlt!")
 
             if st.button("🚀 AD CREATIVE JETZT ERSTELLEN", disabled=not gemini_key):
-                ad_refs = ad_ref_files if use_ad_creative and ad_ref_files else None
-                if ad_refs:
-                    st.info(f"📸 {len(ad_refs)} Referenzbild(er) werden mitgesendet...")
+                # Combine model refs + product refs for ads
+                all_ad_refs = []
+                if model_ref_files:
+                    all_ad_refs.extend(model_ref_files)
+                if use_ad_creative and ad_ref_files:
+                    all_ad_refs.extend(ad_ref_files)
+                ad_refs = all_ad_refs if all_ad_refs else None
+
+                if model_ref_files:
+                    st.info(f"👤 {len(model_ref_files)} Model-Referenzbild(er) werden mitgesendet...")
+                if use_ad_creative and ad_ref_files:
+                    st.info(f"📸 {len(ad_ref_files)} Produkt-Referenzbild(er) werden mitgesendet...")
+
+                # Add model reference instruction to ad prompt if model refs exist
+                active_ad_prompt = st.session_state.last_ad_prompt
+                if model_ref_files:
+                    model_ref_ad_instr = (
+                        "\n\nMODEL REFERENCE — ABSOLUTE RULE: "
+                        f"The first {len(model_ref_files)} reference image(s) show the MODEL/PERSON to use. "
+                        "Reproduce this person 1:1 IDENTICALLY — same face, same facial features, same bone structure, "
+                        "same skin tone, same body type, same proportions. "
+                        "The generated image must look like the EXACT SAME PERSON photographed in a new setting. "
+                        "Do NOT change: face shape, nose, eyes, lips, jawline, eyebrows, skin color, body build, or ANY facial feature."
+                    )
+                    if use_ad_creative and ad_ref_files:
+                        model_ref_ad_instr += (
+                            f"\nThe LAST {len(ad_ref_files)} reference image(s) show the PRODUCT/JEWELRY to use. "
+                            "Reproduce the product 1:1 IDENTICALLY."
+                        )
+                    active_ad_prompt = active_ad_prompt + model_ref_ad_instr
 
                 # Map ad format to aspect ratio string for Gemini
                 ad_ar_map = {
@@ -3591,6 +3675,9 @@ Zielgruppe: {brief_persona}.
                 # 3-2-2 Mode: generate from all 3 variant prompts
                 if use_322 and st.session_state.get("ad_322_prompts"):
                     prompts_to_gen = [(p["name"], p["prompt"]) for p in st.session_state["ad_322_prompts"]]
+                    # Add model ref instruction to each variant
+                    if model_ref_files:
+                        prompts_to_gen = [(name, prompt + model_ref_ad_instr) for name, prompt in prompts_to_gen]
                     st.info(f"🔬 3-2-2 Modus: Generiere {len(prompts_to_gen)} visuell unterschiedliche Varianten...")
                     for idx, (name, var_prompt) in enumerate(prompts_to_gen):
                         with st.spinner(f"{name} ({idx+1}/{len(prompts_to_gen)})..."):
@@ -3611,7 +3698,7 @@ Zielgruppe: {brief_persona}.
                     for i in range(num_ad_images):
                         with st.spinner(f"Gemini generiert Ad Creative {i+1}/{num_ad_images}..."):
                             img_bytes, mime_type = smart_generate_image(
-                                st.session_state.last_ad_prompt, gemini_key,
+                                active_ad_prompt, gemini_key,
                                 reference_images=ad_refs, aspect_ratio_str=ad_ar_str,
                             )
                         if img_bytes:
@@ -3654,9 +3741,18 @@ Zielgruppe: {brief_persona}.
             st.warning("⚠️ Gemini API Key fehlt!")
 
         if st.button("🚀 CAROUSEL JETZT ERSTELLEN", disabled=not gemini_key):
-            ad_refs = ad_ref_files if use_ad_creative and ad_ref_files else None
-            if ad_refs:
-                st.info(f"📸 {len(ad_refs)} Referenzbild(er) werden bei jeder Slide mitgesendet...")
+            # Combine model refs + product refs for carousel
+            all_carousel_refs = []
+            if model_ref_files:
+                all_carousel_refs.extend(model_ref_files)
+            if use_ad_creative and ad_ref_files:
+                all_carousel_refs.extend(ad_ref_files)
+            ad_refs = all_carousel_refs if all_carousel_refs else None
+
+            if model_ref_files:
+                st.info(f"👤 {len(model_ref_files)} Model-Referenz(en) bei jeder Slide...")
+            if use_ad_creative and ad_ref_files:
+                st.info(f"📸 {len(ad_ref_files)} Produkt-Referenz(en) bei jeder Slide...")
 
             carousel_progress = st.progress(0, text="🎠 Carousel wird generiert...")
 
