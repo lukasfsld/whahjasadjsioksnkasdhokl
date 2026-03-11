@@ -349,42 +349,10 @@ tab_model, tab_pose, tab_camera, tab_format = st.tabs([
 
 with tab_model:
     st.markdown('<div class="section-card"><h3>Model & Realismus</h3></div>', unsafe_allow_html=True)
-    col1, col2, col3, col4 = st.columns(4)
 
-with col1:
-    gender_options = ["Female Model", "Male Model", "Non-binary Model"]
-    gender = st.selectbox("Geschlecht", gender_options,
-                          index=gender_options.index(get_val("gender", "Female Model")))
-    age_options = ["18-24", "25-34", "35-44", "45-55", "60+"]
-    age = st.select_slider("Alter", options=age_options,
-                           value=get_val("age", "25-34"))
-
-with col2:
-    ethnicity = st.text_input("Ethnie / Look", value=get_val("ethnicity", "olive skin tone"))
-    hair_color = st.text_input("Haarfarbe", value=get_val("hair_color", "dark brown"))
-
-with col3:
-    hair_tex_options = ["Straight (Glatt)", "Wavy (Wellig)", "Curly (Lockig)", "Coily (Afro)"]
-    hair_texture = st.select_slider("Haarstruktur", options=hair_tex_options,
-                                    value=get_val("hair_texture", "Wavy (Wellig)"))
-    hair_style_options = ["Loose & Open", "Sleek Ponytail", "Messy Bun", "Short Cut", "Bob Cut"]
-    hair_style = st.selectbox("Frisur-Stil", hair_style_options,
-                              index=hair_style_options.index(get_val("hair_style", "Loose & Open")))
-
-with col4:
-    eye_color = st.text_input("Augenfarbe", value=get_val("eye_color", "green"))
-    freckle_options = ["Klare Haut", "Sommersprossen"]
-    freckles = st.radio("Haut-Basis", freckle_options, horizontal=True,
-                        index=freckle_options.index(get_val("freckles", "Klare Haut")))
-    use_vellus = st.checkbox("Vellus Hair (Flaum)", value=get_val("use_vellus", True),
-                             help="Ultra-realistische Härchen auf der Haut.")
-    use_imperfections = st.checkbox("Natural Imperfections", value=get_val("use_imperfections", False),
-                                   help="Asymmetrie und kleine Makel.")
-
-    # --- MODEL REFERENCE IMAGES ---
-    st.markdown("---")
+    # --- MODEL REFERENCE IMAGES (before fields so we can disable them) ---
     st.markdown("**📸 Model-Referenzbilder (optional)**")
-    st.caption("Lade bis zu 5 Fotos hoch wie das Model aussehen soll. Gemini versucht Gesicht, Körperbau und Stil 1:1 zu übernehmen.")
+    st.caption("Lade bis zu 5 Fotos hoch — Gesicht, Haarfarbe, Hautton, Körperbau werden 1:1 vom Bild übernommen. Du steuerst nur noch Outfit, Pose & Kamera.")
     model_ref_files = st.file_uploader(
         "Model-Referenzbilder (max. 5)",
         type=["png", "jpg", "jpeg", "webp"],
@@ -399,14 +367,69 @@ with col4:
         ref_cols = st.columns(min(len(model_ref_files), 5))
         for idx, f in enumerate(model_ref_files):
             ref_cols[idx].image(f, caption=f"Ref {idx+1}", width=100)
-        st.info(
-            f"✅ **{len(model_ref_files)} Model-Referenz(en)** geladen.\n\n"
-            "Das Model im generierten Bild soll **1:1 wie auf diesen Fotos** aussehen — "
-            "gleiches Gesicht, gleiche Gesichtszüge, gleicher Körperbau, gleicher Stil. "
-            "Die Referenzbilder werden zusammen mit dem Prompt an Gemini geschickt."
+        st.success(
+            f"✅ **{len(model_ref_files)} Model-Referenz(en)** geladen — "
+            "Aussehen wird 1:1 vom Bild übernommen. Felder unten sind deaktiviert."
         )
     else:
         model_ref_files = []
+
+    has_model_ref = len(model_ref_files) > 0
+
+    st.markdown("---")
+    col1, col2, col3, col4 = st.columns(4)
+
+with col1:
+    if has_model_ref:
+        st.info("👤 Wird vom Referenzbild übernommen")
+        gender = "As shown in the MODEL REFERENCE images"
+        age = "As shown in the MODEL REFERENCE images"
+    else:
+        gender_options = ["Female Model", "Male Model", "Non-binary Model"]
+        gender = st.selectbox("Geschlecht", gender_options,
+                              index=gender_options.index(get_val("gender", "Female Model")))
+        age_options = ["18-24", "25-34", "35-44", "45-55", "60+"]
+        age = st.select_slider("Alter", options=age_options,
+                               value=get_val("age", "25-34"))
+
+with col2:
+    if has_model_ref:
+        st.info("👤 Wird vom Referenzbild übernommen")
+        ethnicity = "As shown in the MODEL REFERENCE images"
+        hair_color = "As shown in the MODEL REFERENCE images"
+    else:
+        ethnicity = st.text_input("Ethnie / Look", value=get_val("ethnicity", "olive skin tone"))
+        hair_color = st.text_input("Haarfarbe", value=get_val("hair_color", "dark brown"))
+
+with col3:
+    if has_model_ref:
+        st.info("👤 Wird vom Referenzbild übernommen")
+        hair_texture = "As shown in the MODEL REFERENCE images"
+        hair_style = "As shown in the MODEL REFERENCE images"
+    else:
+        hair_tex_options = ["Straight (Glatt)", "Wavy (Wellig)", "Curly (Lockig)", "Coily (Afro)"]
+        hair_texture = st.select_slider("Haarstruktur", options=hair_tex_options,
+                                        value=get_val("hair_texture", "Wavy (Wellig)"))
+        hair_style_options = ["Loose & Open", "Sleek Ponytail", "Messy Bun", "Short Cut", "Bob Cut"]
+        hair_style = st.selectbox("Frisur-Stil", hair_style_options,
+                                  index=hair_style_options.index(get_val("hair_style", "Loose & Open")))
+
+with col4:
+    if has_model_ref:
+        st.info("👤 Wird vom Referenzbild übernommen")
+        eye_color = "As shown in the MODEL REFERENCE images"
+        freckles = "As shown in the MODEL REFERENCE images"
+        use_vellus = True
+        use_imperfections = False
+    else:
+        eye_color = st.text_input("Augenfarbe", value=get_val("eye_color", "green"))
+        freckle_options = ["Klare Haut", "Sommersprossen"]
+        freckles = st.radio("Haut-Basis", freckle_options, horizontal=True,
+                            index=freckle_options.index(get_val("freckles", "Klare Haut")))
+        use_vellus = st.checkbox("Vellus Hair (Flaum)", value=get_val("use_vellus", True),
+                                 help="Ultra-realistische Härchen auf der Haut.")
+        use_imperfections = st.checkbox("Natural Imperfections", value=get_val("use_imperfections", False),
+                                       help="Asymmetrie und kleine Makel.")
 
 
 # --- 2. KLEIDUNG & POSE ---
@@ -2246,6 +2269,7 @@ def build_prompt_local():
 
     # Render template
     prompt = PROMPT_TEMPLATE.render(
+        has_model_ref=has_model_ref,
         aspect_ratio=ar_text,
         gender=gender,
         age=age,
