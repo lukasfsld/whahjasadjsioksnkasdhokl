@@ -1,9 +1,19 @@
 Ultra-realistic {{ aspect_ratio }} commercial campaign photograph.
 
+{% if has_model_ref -%}
+MODEL IDENTITY — ABSOLUTE RULE: The MODEL REFERENCE IMAGES define the person's COMPLETE appearance.
+Reproduce this EXACT person 1:1 — same face, facial features, bone structure, skin tone, hair color,
+hair texture, eye color, body type, and proportions. Do NOT alter ANY physical feature.
+The generated image must look like the IDENTICAL person photographed in a new setting.
+ONLY the OUTFIT, POSE, and SETTING are controlled by the prompt below — everything about the person's
+appearance (face, hair, skin, body) comes EXCLUSIVELY from the reference images.
+
+{% else -%}
 SUBJECT: {{ gender }}, age {{ age }}, {{ ethnicity }}, {{ eye_color }} eyes.
 HAIR: {{ hair_color }}, {{ hair_texture }}, styled {{ hair_style }}, {{ wind }}.
 SKIN: {{ skin_details }}. Visible subsurface scattering, pore-level detail, natural skin translucency.
 
+{% endif -%}
 {% if expression == "Authentic" -%}
 POSE: {{ pose }}. Unposed, natural body language. Genuine {{ candid_moment }} expression captured mid-moment.
 {% else -%}
