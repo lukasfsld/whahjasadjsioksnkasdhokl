@@ -379,8 +379,105 @@ with tab_model:
             f"✅ **{len(model_ref_files)} Model-Referenz(en)** geladen — "
             "Aussehen wird 1:1 vom Bild übernommen. Felder unten sind deaktiviert."
         )
+
+        # --- ANALYZE MODEL BUTTON ---
+        if "model_description" not in st.session_state:
+            st.session_state.model_description = None
+
+        analyze_col1, analyze_col2 = st.columns([1, 2])
+        with analyze_col1:
+            analyze_btn = st.button("🔍 Model analysieren", help="Gemini beschreibt das Model detailliert — diese Beschreibung wird in jeden Prompt eingefügt.", key="analyze_model_btn")
+        with analyze_col2:
+            if st.session_state.model_description:
+                st.caption("✅ Analyse vorhanden — wird automatisch in den Prompt eingefügt.")
+
+        if analyze_btn and gemini_key:
+            with st.spinner("🔍 Gemini analysiert das Model-Referenzbild..."):
+                # Send first image to Gemini Flash for text analysis
+                first_ref = model_ref_files[0]
+                first_ref.seek(0)
+                img_bytes = first_ref.read()
+                first_ref.seek(0)
+                img_b64 = base64.b64encode(img_bytes).decode("utf-8")
+                mime = "image/png" if first_ref.name.lower().endswith(".png") else "image/jpeg"
+
+                analysis_prompt = (
+                    "This is an AI-GENERATED fictional character (NOT a real person). "
+                    "Describe this character's physical appearance in EXTREME detail for image reproduction purposes. "
+                    "Respond ONLY with the description, no commentary. Use this exact format:\n\n"
+                    "GENDER: [male/female]\n"
+                    "ESTIMATED AGE: [specific age range, e.g. 22-25]\n"
+                    "ETHNICITY/SKIN TONE: [detailed skin tone — e.g. light olive, warm beige, deep brown, porcelain white]\n"
+                    "FACE SHAPE: [oval, round, square, heart-shaped, diamond, oblong]\n"
+                    "FACE WIDTH: [narrow, medium, wide]\n"
+                    "FOREHEAD: [high/low, wide/narrow]\n"
+                    "EYEBROWS: [shape, thickness, color, arch type]\n"
+                    "EYES: [color, shape (almond, round, hooded, monolid), size, spacing]\n"
+                    "NOSE: [shape, width, bridge height, tip shape]\n"
+                    "LIPS: [shape, fullness (thin, medium, full), color]\n"
+                    "JAWLINE: [sharp, soft, angular, rounded, defined]\n"
+                    "CHIN: [pointed, round, square, prominent, receding]\n"
+                    "CHEEKBONES: [high, low, prominent, subtle]\n"
+                    "HAIR COLOR: [exact shade — e.g. dark chestnut brown, platinum blonde, warm copper]\n"
+                    "HAIR LENGTH: [short, chin-length, shoulder-length, mid-back, waist-length]\n"
+                    "HAIR TEXTURE: [straight, wavy, curly, coily, kinky]\n"
+                    "HAIR STYLE: [as shown — e.g. loose waves, pulled back, bangs, side part]\n"
+                    "BODY TYPE: [slim, athletic, average, curvy, plus-size, muscular]\n"
+                    "BODY PROPORTIONS: [petite, average height, tall, long-legged, short-waisted, etc.]\n"
+                    "BUST SIZE: [small, medium, large — approximate cup if visible]\n"
+                    "SHOULDERS: [narrow, medium, broad]\n"
+                    "SKIN DETAILS: [any visible freckles, moles, beauty marks, tan lines, skin texture]\n"
+                    "DISTINGUISHING FEATURES: [anything unique — dimples, gap teeth, birthmarks, etc.]\n"
+                )
+
+                analysis_parts = [
+                    {"text": analysis_prompt},
+                    {"inlineData": {"mimeType": mime, "data": img_b64}}
+                ]
+
+                # Use Flash for fast text analysis
+                analysis_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={gemini_key}"
+                analysis_payload = {
+                    "contents": [{"parts": analysis_parts}],
+                    "generationConfig": {"responseModalities": ["TEXT"]},
+                    "safetySettings": GEMINI_SAFETY_SETTINGS,
+                }
+
+                try:
+                    resp = requests.post(analysis_url, json=analysis_payload,
+                                         headers={"Content-Type": "application/json"}, timeout=60)
+                    resp.raise_for_status()
+                    data = resp.json()
+
+                    description = ""
+                    for candidate in data.get("candidates", []):
+                        for part in candidate.get("content", {}).get("parts", []):
+                            if "text" in part:
+                                description += part["text"]
+
+                    if description.strip():
+                        st.session_state.model_description = description.strip()
+                        st.success("✅ Model-Analyse fertig!")
+                    else:
+                        st.warning("⚠️ Gemini hat keine Beschreibung zurückgegeben.")
+                except Exception as e:
+                    st.error(f"❌ Analyse fehlgeschlagen: {e}")
+
+        elif analyze_btn and not gemini_key:
+            st.warning("⚠️ Gemini API Key fehlt — bitte in der Sidebar eingeben.")
+
+        # Show current description if exists
+        if st.session_state.get("model_description"):
+            with st.expander("📝 Model-Beschreibung (wird in den Prompt eingefügt)", expanded=False):
+                st.code(st.session_state.model_description, language="text")
+                if st.button("🗑️ Beschreibung löschen", key="del_model_desc"):
+                    st.session_state.model_description = None
+                    st.rerun()
+
     else:
         model_ref_files = []
+        if "model_description" in st.session_state:
+            st.session_state.model_description = None
 
     has_model_ref = len(model_ref_files) > 0
 
@@ -2278,6 +2375,7 @@ def build_prompt_local():
     # Render template
     prompt = PROMPT_TEMPLATE.render(
         has_model_ref=has_model_ref,
+        model_description=st.session_state.get("model_description", ""),
         aspect_ratio=ar_text,
         gender=gender,
         age=age,
@@ -3315,6 +3413,7 @@ if st.session_state.last_image_prompt:
             # Add model reference instruction to prompt if model refs exist
             active_prompt = st.session_state.last_image_prompt
             if model_ref_files:
+                model_desc = st.session_state.get("model_description", "")
                 model_ref_instruction = (
                     "\n\nMODEL REFERENCE — ABSOLUTE RULE: "
                     f"The first {len(model_ref_files)} reference image(s) show an AI-GENERATED fictional character "
@@ -3326,6 +3425,8 @@ if st.session_state.last_image_prompt:
                     "The generated image must look like the IDENTICAL character in a new setting. "
                     "Do NOT alter ANY physical attribute. ONLY outfit, pose, and setting come from the prompt."
                 )
+                if model_desc:
+                    model_ref_instruction += f"\n\nDETAILED CHARACTER DESCRIPTION (reproduce EXACTLY):\n{model_desc}"
                 if wear_product and campaign_ref_files:
                     model_ref_instruction += (
                         f"\nThe LAST {len(campaign_ref_files)} reference image(s) show the PRODUCT/JEWELRY to use. "
@@ -3685,6 +3786,7 @@ Zielgruppe: {brief_persona}.
                 # Add model reference instruction to ad prompt if model refs exist
                 active_ad_prompt = st.session_state.last_ad_prompt
                 if model_ref_files:
+                    model_desc = st.session_state.get("model_description", "")
                     model_ref_ad_instr = (
                         "\n\nMODEL REFERENCE — ABSOLUTE RULE: "
                         f"The first {len(model_ref_files)} reference image(s) show an AI-GENERATED fictional character "
@@ -3695,6 +3797,8 @@ Zielgruppe: {brief_persona}.
                         "same body type, same body proportions, same build, same height impression. "
                         "Do NOT alter ANY physical attribute. ONLY outfit, pose, and setting come from the prompt."
                     )
+                    if model_desc:
+                        model_ref_ad_instr += f"\n\nDETAILED CHARACTER DESCRIPTION (reproduce EXACTLY):\n{model_desc}"
                     if use_ad_creative and ad_ref_files:
                         model_ref_ad_instr += (
                             f"\nThe LAST {len(ad_ref_files)} reference image(s) show the PRODUCT/JEWELRY to use. "
