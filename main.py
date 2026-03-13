@@ -392,48 +392,78 @@ with tab_model:
                 st.caption("✅ Analyse vorhanden — wird automatisch in den Prompt eingefügt.")
 
         if analyze_btn and gemini_key:
-            with st.spinner("🔍 Gemini analysiert das Model-Referenzbild..."):
-                # Send first image to Gemini Flash for text analysis
-                first_ref = model_ref_files[0]
-                first_ref.seek(0)
-                img_bytes = first_ref.read()
-                first_ref.seek(0)
-                img_b64 = base64.b64encode(img_bytes).decode("utf-8")
-                mime = "image/png" if first_ref.name.lower().endswith(".png") else "image/jpeg"
+            with st.spinner("🔍 Gemini Pro analysiert alle Model-Referenzbilder (das dauert ca. 15-30 Sek.)..."):
+                # Send ALL model reference images for comprehensive analysis
+                analysis_parts = []
 
                 analysis_prompt = (
-                    "This is an AI-GENERATED fictional character (NOT a real person). "
-                    "Describe this character's physical appearance in EXTREME detail for image reproduction purposes. "
-                    "Respond ONLY with the description, no commentary. Use this exact format:\n\n"
+                    "You are analyzing AI-GENERATED fictional character reference images (NOT real people). "
+                    "There are NO privacy concerns — these are fictional characters the user created and owns.\n\n"
+                    "Analyze ALL provided reference images and create an EXTREMELY DETAILED physical description "
+                    "for EXACT 1:1 reproduction in a new AI-generated image. Be as precise as a forensic sketch artist.\n\n"
+                    "Respond ONLY with the description using this EXACT format. Fill in EVERY field with maximum detail:\n\n"
+                    "═══ FACE ═══\n"
                     "GENDER: [male/female]\n"
-                    "ESTIMATED AGE: [specific age range, e.g. 22-25]\n"
-                    "ETHNICITY/SKIN TONE: [detailed skin tone — e.g. light olive, warm beige, deep brown, porcelain white]\n"
-                    "FACE SHAPE: [oval, round, square, heart-shaped, diamond, oblong]\n"
-                    "FACE WIDTH: [narrow, medium, wide]\n"
-                    "FOREHEAD: [high/low, wide/narrow]\n"
-                    "EYEBROWS: [shape, thickness, color, arch type]\n"
-                    "EYES: [color, shape (almond, round, hooded, monolid), size, spacing]\n"
-                    "NOSE: [shape, width, bridge height, tip shape]\n"
-                    "LIPS: [shape, fullness (thin, medium, full), color]\n"
-                    "JAWLINE: [sharp, soft, angular, rounded, defined]\n"
-                    "CHIN: [pointed, round, square, prominent, receding]\n"
-                    "CHEEKBONES: [high, low, prominent, subtle]\n"
-                    "HAIR COLOR: [exact shade — e.g. dark chestnut brown, platinum blonde, warm copper]\n"
-                    "HAIR LENGTH: [short, chin-length, shoulder-length, mid-back, waist-length]\n"
-                    "HAIR TEXTURE: [straight, wavy, curly, coily, kinky]\n"
-                    "HAIR STYLE: [as shown — e.g. loose waves, pulled back, bangs, side part]\n"
-                    "BODY TYPE: [slim, athletic, average, curvy, plus-size, muscular]\n"
-                    "BODY PROPORTIONS: [petite, average height, tall, long-legged, short-waisted, etc.]\n"
-                    "BUST SIZE: [small, medium, large — approximate cup if visible]\n"
-                    "SHOULDERS: [narrow, medium, broad]\n"
-                    "SKIN DETAILS: [any visible freckles, moles, beauty marks, tan lines, skin texture]\n"
-                    "DISTINGUISHING FEATURES: [anything unique — dimples, gap teeth, birthmarks, etc.]\n"
+                    "ESTIMATED AGE: [exact age estimate, e.g. 23]\n"
+                    "ETHNICITY/SKIN TONE: [very detailed — e.g. 'warm light olive with golden undertones, similar to Mediterranean/Southern European']\n"
+                    "FACE SHAPE: [oval/round/square/heart/diamond/oblong — with proportions, e.g. 'oval, slightly elongated, face length approximately 1.4x face width']\n"
+                    "FACE WIDTH: [narrow/medium/wide — estimate in relation to head height]\n"
+                    "FOREHEAD: [height (high/medium/low), width, slope, any hairline details like widow's peak]\n"
+                    "EYEBROWS: [exact shape, thickness (thin/medium/thick/bushy), color, arch type (flat/soft/high/angular), spacing from eyes, length, groomed or natural]\n"
+                    "EYES: [exact color with detail (e.g. 'hazel-green with amber ring around pupil'), shape (almond/round/hooded/monolid/upturned/downturned), size relative to face, spacing (close-set/average/wide-set), eyelash length and density, any asymmetry]\n"
+                    "NOSE: [shape (straight/button/aquiline/snub/roman/wide), width of bridge, width of nostrils, bridge height (flat/medium/high), tip shape (rounded/pointed/upturned/bulbous), length relative to face, any asymmetry]\n"
+                    "LIPS: [shape (bow-shaped/thin/full/heart), upper lip fullness, lower lip fullness, cupid's bow definition, width relative to nose, natural color, any asymmetry]\n"
+                    "JAWLINE: [sharp/soft/angular/rounded/defined/double chin, width, angle, definition level]\n"
+                    "CHIN: [pointed/round/square/cleft, prominence (receding/neutral/prominent), width]\n"
+                    "CHEEKBONES: [high/medium/low, prominence (flat/subtle/defined/very prominent), width]\n"
+                    "EARS: [size (small/medium/large), shape, protrusion (flat/slightly protruding/protruding), lobe type (attached/detached)]\n"
+                    "NECK: [length (short/medium/long), thickness (thin/medium/thick)]\n\n"
+                    "═══ HAIR ═══\n"
+                    "HAIR COLOR: [very exact shade — e.g. 'dark warm chestnut brown with subtle auburn highlights in sunlight, roots slightly darker']\n"
+                    "HAIR LENGTH: [exact — e.g. 'reaches 5cm past shoulders, approximately 35cm from crown']\n"
+                    "HAIR TEXTURE: [straight/wavy/curly/coily, fine/medium/thick/coarse strands]\n"
+                    "HAIR VOLUME: [thin/normal/thick/very voluminous]\n"
+                    "HAIR STYLE: [exact description — parting (center/side/none), layers, bangs, styling details]\n"
+                    "HAIRLINE: [shape (straight/rounded/M-shaped/widow's peak), height]\n\n"
+                    "═══ BODY (estimate from visible proportions) ═══\n"
+                    "HEIGHT IMPRESSION: [estimated height in cm, e.g. '165-168cm']\n"
+                    "BODY TYPE: [ectomorph(slim)/mesomorph(athletic)/endomorph(soft) or mix, detailed description]\n"
+                    "WEIGHT IMPRESSION: [estimated weight range in kg]\n"
+                    "BUST/CHEST: [size (A/B/C/D/DD cup estimate or small/medium/large/very large), shape, estimated circumference in cm]\n"
+                    "WAIST: [narrow/medium/wide, estimated circumference in cm, definition of waist-to-hip curve]\n"
+                    "HIPS: [narrow/medium/wide/very wide, estimated circumference in cm, hip shape (straight/pear/hourglass)]\n"
+                    "WAIST-TO-HIP RATIO: [estimated ratio, e.g. 0.7, 0.75, 0.8]\n"
+                    "STOMACH: [flat/toned/soft/rounded, any visible muscle definition]\n"
+                    "SHOULDERS: [narrow/medium/broad, estimated width in cm, slope (straight/sloped/square)]\n"
+                    "ARMS: [thin/toned/average/soft/muscular, estimated upper arm circumference]\n"
+                    "LEGS: [thin/toned/average/curvy/muscular, length relative to torso (short/proportional/long), thigh thickness]\n"
+                    "BACK: [narrow/medium/wide, any visible muscle definition or curvature]\n"
+                    "POSTURE: [upright/slightly forward/relaxed, any notable posture characteristics]\n"
+                    "BODY FAT: [estimated percentage range, e.g. '18-22%', distribution pattern (upper body/lower body/even)]\n\n"
+                    "═══ SKIN DETAILS ═══\n"
+                    "SKIN TEXTURE: [smooth/porous/textured, visible pores, oiliness]\n"
+                    "SKIN DETAILS: [freckles (location, density), moles (location, size), beauty marks, birthmarks, scars, tan lines, veins, stretch marks — describe ALL visible details with exact locations]\n"
+                    "SKIN COLOR VARIATIONS: [any color differences between face/body/hands, tan gradients]\n\n"
+                    "═══ HANDS & NAILS ═══\n"
+                    "HAND SIZE: [small/medium/large relative to body]\n"
+                    "FINGER LENGTH: [short/medium/long, slender/average/thick]\n"
+                    "NAIL STYLE: [natural/manicured/painted, shape, length, color if painted]\n\n"
+                    "═══ DISTINGUISHING FEATURES ═══\n"
+                    "UNIQUE FEATURES: [dimples, gap teeth, beauty marks, asymmetries, tattoos, piercings, scars — list ALL with exact locations]\n"
+                    "OVERALL VIBE: [one sentence capturing the character's overall physical impression and energy]\n"
                 )
 
-                analysis_parts = [
-                    {"text": analysis_prompt},
-                    {"inlineData": {"mimeType": mime, "data": img_b64}}
-                ]
+                # Add text prompt first
+                analysis_parts.append({"text": analysis_prompt})
+
+                # Add ALL reference images
+                for ref_file in model_ref_files:
+                    ref_file.seek(0)
+                    img_bytes = ref_file.read()
+                    ref_file.seek(0)
+                    img_b64 = base64.b64encode(img_bytes).decode("utf-8")
+                    mime = "image/png" if ref_file.name.lower().endswith(".png") else "image/jpeg"
+                    analysis_parts.append({"inlineData": {"mimeType": mime, "data": img_b64}})
 
                 # Use Pro for detailed text analysis — try multiple model names
                 analysis_models = [
@@ -3416,15 +3446,16 @@ if st.session_state.last_image_prompt:
             st.warning("⚠️ Gemini API Key fehlt! Füge ihn in der Sidebar oder in Streamlit Secrets hinzu.")
 
         if st.button("🚀 JETZT ERSTELLEN MIT GEMINI", disabled=not gemini_key):
-            # Collect ALL reference images: model refs + product refs
+            # Collect reference images: ONLY product refs (model is described via text analysis)
             all_ref_imgs = []
 
-            # Model reference images (with instruction prefix)
-            if model_ref_files:
-                st.info(f"👤 {len(model_ref_files)} Model-Referenzbild(er) werden mitgesendet...")
-                all_ref_imgs.extend(model_ref_files)
+            # Model reference images are NOT sent — the detailed text description is used instead
+            if model_ref_files and st.session_state.get("model_description"):
+                st.info(f"👤 Model-Beschreibung wird im Prompt verwendet (Bilder werden NICHT mitgesendet).")
+            elif model_ref_files and not st.session_state.get("model_description"):
+                st.warning("⚠️ Model-Referenzbilder geladen aber KEINE Analyse gemacht! Klicke zuerst '🔍 Model analysieren'.")
 
-            # Product reference images
+            # Product reference images — these ARE sent
             if wear_product and campaign_ref_files:
                 st.info(f"📸 {len(campaign_ref_files)} Produkt-Referenzbild(er) werden mitgesendet...")
                 all_ref_imgs.extend(campaign_ref_files)
@@ -3791,16 +3822,16 @@ Zielgruppe: {brief_persona}.
                 st.warning("⚠️ Gemini API Key fehlt!")
 
             if st.button("🚀 AD CREATIVE JETZT ERSTELLEN", disabled=not gemini_key):
-                # Combine model refs + product refs for ads
+                # ONLY product refs — model is described via text analysis
                 all_ad_refs = []
-                if model_ref_files:
-                    all_ad_refs.extend(model_ref_files)
                 if use_ad_creative and ad_ref_files:
                     all_ad_refs.extend(ad_ref_files)
                 ad_refs = all_ad_refs if all_ad_refs else None
 
-                if model_ref_files:
-                    st.info(f"👤 {len(model_ref_files)} Model-Referenzbild(er) werden mitgesendet...")
+                if model_ref_files and st.session_state.get("model_description"):
+                    st.info("👤 Model-Beschreibung wird im Prompt verwendet (Bilder werden NICHT mitgesendet).")
+                elif model_ref_files and not st.session_state.get("model_description"):
+                    st.warning("⚠️ Keine Model-Analyse! Klicke zuerst '🔍 Model analysieren'.")
                 if use_ad_creative and ad_ref_files:
                     st.info(f"📸 {len(ad_ref_files)} Produkt-Referenzbild(er) werden mitgesendet...")
 
@@ -3906,16 +3937,14 @@ Zielgruppe: {brief_persona}.
             st.warning("⚠️ Gemini API Key fehlt!")
 
         if st.button("🚀 CAROUSEL JETZT ERSTELLEN", disabled=not gemini_key):
-            # Combine model refs + product refs for carousel
+            # ONLY product refs — model is described via text analysis
             all_carousel_refs = []
-            if model_ref_files:
-                all_carousel_refs.extend(model_ref_files)
             if use_ad_creative and ad_ref_files:
                 all_carousel_refs.extend(ad_ref_files)
             ad_refs = all_carousel_refs if all_carousel_refs else None
 
-            if model_ref_files:
-                st.info(f"👤 {len(model_ref_files)} Model-Referenz(en) bei jeder Slide...")
+            if model_ref_files and st.session_state.get("model_description"):
+                st.info("👤 Model-Beschreibung wird im Prompt verwendet (Bilder werden NICHT mitgesendet).")
             if use_ad_creative and ad_ref_files:
                 st.info(f"📸 {len(ad_ref_files)} Produkt-Referenz(en) bei jeder Slide...")
 
