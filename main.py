@@ -435,33 +435,54 @@ with tab_model:
                     {"inlineData": {"mimeType": mime, "data": img_b64}}
                 ]
 
-                # Use Flash for fast text analysis
-                analysis_url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={gemini_key}"
-                analysis_payload = {
-                    "contents": [{"parts": analysis_parts}],
-                    "generationConfig": {"responseModalities": ["TEXT"]},
-                    "safetySettings": GEMINI_SAFETY_SETTINGS,
-                }
+                # Use Pro for detailed text analysis — try multiple model names
+                analysis_models = [
+                    "gemini-2.5-pro-preview-05-06",
+                    "gemini-2.5-pro",
+                    "gemini-2.5-pro-preview-03-25",
+                    "gemini-2.0-pro",
+                    "gemini-1.5-pro",
+                ]
 
-                try:
-                    resp = requests.post(analysis_url, json=analysis_payload,
-                                         headers={"Content-Type": "application/json"}, timeout=60)
-                    resp.raise_for_status()
-                    data = resp.json()
+                analysis_success = False
+                for analysis_model in analysis_models:
+                    analysis_url = f"https://generativelanguage.googleapis.com/v1beta/models/{analysis_model}:generateContent?key={gemini_key}"
+                    analysis_payload = {
+                        "contents": [{"parts": analysis_parts}],
+                        "generationConfig": {"responseMimeType": "text/plain"},
+                        "safetySettings": GEMINI_SAFETY_SETTINGS,
+                    }
 
-                    description = ""
-                    for candidate in data.get("candidates", []):
-                        for part in candidate.get("content", {}).get("parts", []):
-                            if "text" in part:
-                                description += part["text"]
+                    try:
+                        resp = requests.post(analysis_url, json=analysis_payload,
+                                             headers={"Content-Type": "application/json"}, timeout=60)
+                        if resp.status_code == 404:
+                            continue  # Model not found, try next
+                        resp.raise_for_status()
+                        data = resp.json()
 
-                    if description.strip():
-                        st.session_state.model_description = description.strip()
-                        st.success("✅ Model-Analyse fertig!")
-                    else:
-                        st.warning("⚠️ Gemini hat keine Beschreibung zurückgegeben.")
-                except Exception as e:
-                    st.error(f"❌ Analyse fehlgeschlagen: {e}")
+                        description = ""
+                        for candidate in data.get("candidates", []):
+                            for part in candidate.get("content", {}).get("parts", []):
+                                if "text" in part:
+                                    description += part["text"]
+
+                        if description.strip():
+                            st.session_state.model_description = description.strip()
+                            st.success(f"✅ Model-Analyse fertig! (via {analysis_model})")
+                            analysis_success = True
+                            break
+                        else:
+                            st.warning(f"⚠️ {analysis_model} hat keine Beschreibung zurückgegeben — versuche nächstes Modell...")
+                    except requests.exceptions.HTTPError:
+                        continue  # Try next model
+                    except Exception as e:
+                        st.error(f"❌ Analyse fehlgeschlagen: {e}")
+                        analysis_success = True  # Don't try more models on non-HTTP errors
+                        break
+
+                if not analysis_success and not st.session_state.get("model_description"):
+                    st.error("❌ Kein Gemini-Modell für Text-Analyse verfügbar. Prüfe deinen API Key.")
 
         elif analyze_btn and not gemini_key:
             st.warning("⚠️ Gemini API Key fehlt — bitte in der Sidebar eingeben.")
