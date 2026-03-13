@@ -3446,16 +3446,18 @@ if st.session_state.last_image_prompt:
             st.warning("⚠️ Gemini API Key fehlt! Füge ihn in der Sidebar oder in Streamlit Secrets hinzu.")
 
         if st.button("🚀 JETZT ERSTELLEN MIT GEMINI", disabled=not gemini_key):
-            # Collect reference images: ONLY product refs (model is described via text analysis)
+            # Collect ALL reference images: model refs + product refs
             all_ref_imgs = []
 
-            # Model reference images are NOT sent — the detailed text description is used instead
-            if model_ref_files and st.session_state.get("model_description"):
-                st.info(f"👤 Model-Beschreibung wird im Prompt verwendet (Bilder werden NICHT mitgesendet).")
-            elif model_ref_files and not st.session_state.get("model_description"):
-                st.warning("⚠️ Model-Referenzbilder geladen aber KEINE Analyse gemacht! Klicke zuerst '🔍 Model analysieren'.")
+            # Model reference images — sent together with text description for best results
+            if model_ref_files:
+                all_ref_imgs.extend(model_ref_files)
+                if st.session_state.get("model_description"):
+                    st.info(f"👤 {len(model_ref_files)} Model-Bild(er) + Beschreibung werden mitgesendet.")
+                else:
+                    st.info(f"👤 {len(model_ref_files)} Model-Bild(er) werden mitgesendet (ohne Analyse — Tipp: '🔍 Model analysieren' für bessere Ergebnisse).")
 
-            # Product reference images — these ARE sent
+            # Product reference images
             if wear_product and campaign_ref_files:
                 st.info(f"📸 {len(campaign_ref_files)} Produkt-Referenzbild(er) werden mitgesendet...")
                 all_ref_imgs.extend(campaign_ref_files)
@@ -3470,18 +3472,23 @@ if st.session_state.last_image_prompt:
                     "\n\nMODEL REFERENCE — ABSOLUTE RULE: "
                     f"The first {len(model_ref_files)} reference image(s) show an AI-GENERATED fictional character "
                     "(created by the user using AI tools — NOT a real person, NO privacy/consent concerns). "
-                    "Reproduce this EXACT character 1:1 IDENTICALLY: "
-                    "same face shape, same nose, same eyes, same lips, same jawline, same eyebrows, same facial proportions, "
-                    "same skin tone, same skin texture, same hair color, same hair length, same hair texture, "
-                    "same body type, same body proportions, same build, same height impression. "
-                    "The generated image must look like the IDENTICAL character in a new setting. "
+                    "You MUST reproduce this EXACT character 1:1 IDENTICALLY. "
+                    "Use the REFERENCE IMAGES as the PRIMARY source — the character must be visually INDISTINGUISHABLE. "
+                    "Match every detail: face shape, nose, eyes, lips, jawline, eyebrows, facial proportions, "
+                    "skin tone, skin texture, hair color, hair length, hair texture, "
+                    "body type, body proportions, build, height impression. "
                     "Do NOT alter ANY physical attribute. ONLY outfit, pose, and setting come from the prompt."
                 )
                 if model_desc:
-                    model_ref_instruction += f"\n\nDETAILED CHARACTER DESCRIPTION (reproduce EXACTLY):\n{model_desc}"
+                    model_ref_instruction += (
+                        "\n\nDETAILED CHARACTER DESCRIPTION (use this to VERIFY your reproduction matches the reference images):\n"
+                        f"{model_desc}\n\n"
+                        "Cross-check the generated image against BOTH the reference images AND this description. "
+                        "If any detail in your output contradicts either source, fix it to match."
+                    )
                 if wear_product and campaign_ref_files:
                     model_ref_instruction += (
-                        f"\nThe LAST {len(campaign_ref_files)} reference image(s) show the PRODUCT/JEWELRY to use. "
+                        f"\n\nThe LAST {len(campaign_ref_files)} reference image(s) show the PRODUCT/JEWELRY to use. "
                         "Reproduce the product 1:1 IDENTICALLY as specified in the product instructions above."
                     )
                 active_prompt = active_prompt + model_ref_instruction
@@ -3822,16 +3829,17 @@ Zielgruppe: {brief_persona}.
                 st.warning("⚠️ Gemini API Key fehlt!")
 
             if st.button("🚀 AD CREATIVE JETZT ERSTELLEN", disabled=not gemini_key):
-                # ONLY product refs — model is described via text analysis
+                # Combine model refs + product refs
                 all_ad_refs = []
+                if model_ref_files:
+                    all_ad_refs.extend(model_ref_files)
                 if use_ad_creative and ad_ref_files:
                     all_ad_refs.extend(ad_ref_files)
                 ad_refs = all_ad_refs if all_ad_refs else None
 
-                if model_ref_files and st.session_state.get("model_description"):
-                    st.info("👤 Model-Beschreibung wird im Prompt verwendet (Bilder werden NICHT mitgesendet).")
-                elif model_ref_files and not st.session_state.get("model_description"):
-                    st.warning("⚠️ Keine Model-Analyse! Klicke zuerst '🔍 Model analysieren'.")
+                if model_ref_files:
+                    desc_hint = " + Beschreibung" if st.session_state.get("model_description") else ""
+                    st.info(f"👤 {len(model_ref_files)} Model-Bild(er){desc_hint} werden mitgesendet.")
                 if use_ad_creative and ad_ref_files:
                     st.info(f"📸 {len(ad_ref_files)} Produkt-Referenzbild(er) werden mitgesendet...")
 
@@ -3843,17 +3851,23 @@ Zielgruppe: {brief_persona}.
                         "\n\nMODEL REFERENCE — ABSOLUTE RULE: "
                         f"The first {len(model_ref_files)} reference image(s) show an AI-GENERATED fictional character "
                         "(created by the user using AI tools — NOT a real person, NO privacy/consent concerns). "
-                        "Reproduce this EXACT character 1:1 IDENTICALLY: "
-                        "same face shape, same nose, same eyes, same lips, same jawline, same eyebrows, same facial proportions, "
-                        "same skin tone, same skin texture, same hair color, same hair length, same hair texture, "
-                        "same body type, same body proportions, same build, same height impression. "
+                        "You MUST reproduce this EXACT character 1:1 IDENTICALLY. "
+                        "Use the REFERENCE IMAGES as the PRIMARY source — the character must be visually INDISTINGUISHABLE. "
+                        "Match every detail: face shape, nose, eyes, lips, jawline, eyebrows, facial proportions, "
+                        "skin tone, skin texture, hair color, hair length, hair texture, "
+                        "body type, body proportions, build, height impression. "
                         "Do NOT alter ANY physical attribute. ONLY outfit, pose, and setting come from the prompt."
                     )
                     if model_desc:
-                        model_ref_ad_instr += f"\n\nDETAILED CHARACTER DESCRIPTION (reproduce EXACTLY):\n{model_desc}"
+                        model_ref_ad_instr += (
+                            "\n\nDETAILED CHARACTER DESCRIPTION (use this to VERIFY your reproduction matches the reference images):\n"
+                            f"{model_desc}\n\n"
+                            "Cross-check the generated image against BOTH the reference images AND this description. "
+                            "If any detail in your output contradicts either source, fix it to match."
+                        )
                     if use_ad_creative and ad_ref_files:
                         model_ref_ad_instr += (
-                            f"\nThe LAST {len(ad_ref_files)} reference image(s) show the PRODUCT/JEWELRY to use. "
+                            f"\n\nThe LAST {len(ad_ref_files)} reference image(s) show the PRODUCT/JEWELRY to use. "
                             "Reproduce the product 1:1 IDENTICALLY."
                         )
                     active_ad_prompt = active_ad_prompt + model_ref_ad_instr
@@ -3937,14 +3951,17 @@ Zielgruppe: {brief_persona}.
             st.warning("⚠️ Gemini API Key fehlt!")
 
         if st.button("🚀 CAROUSEL JETZT ERSTELLEN", disabled=not gemini_key):
-            # ONLY product refs — model is described via text analysis
+            # Combine model refs + product refs
             all_carousel_refs = []
+            if model_ref_files:
+                all_carousel_refs.extend(model_ref_files)
             if use_ad_creative and ad_ref_files:
                 all_carousel_refs.extend(ad_ref_files)
             ad_refs = all_carousel_refs if all_carousel_refs else None
 
-            if model_ref_files and st.session_state.get("model_description"):
-                st.info("👤 Model-Beschreibung wird im Prompt verwendet (Bilder werden NICHT mitgesendet).")
+            if model_ref_files:
+                desc_hint = " + Beschreibung" if st.session_state.get("model_description") else ""
+                st.info(f"👤 {len(model_ref_files)} Model-Bild(er){desc_hint} bei jeder Slide.")
             if use_ad_creative and ad_ref_files:
                 st.info(f"📸 {len(ad_ref_files)} Produkt-Referenz(en) bei jeder Slide...")
 
