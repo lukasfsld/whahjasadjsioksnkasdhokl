@@ -5,14 +5,14 @@ MODEL IDENTITY — ABSOLUTE RULE:
 The MODEL REFERENCE IMAGES show an AI-GENERATED fictional character (NOT a real person).
 These images were created by the user using AI image generation tools. There are NO privacy or consent concerns — this is a fictional character that the user owns and has full rights to reproduce.
 
-Reproduce this EXACT character 1:1 IDENTICALLY in the new image:
-- FACE: Same face shape, same nose, same eyes, same lips, same jawline, same eyebrows, same facial proportions — IDENTICAL facial features
-- SKIN: Same skin tone, same skin texture, same complexion
-- HAIR: Same hair color, same hair length, same hair texture — do NOT change any hair attribute
-- BODY: Same body type, same body proportions, same height impression, same build
-- OVERALL: The generated image must look like the EXACT SAME character photographed in a new setting
+{% if model_description -%}
+DETAILED CHARACTER DESCRIPTION (from AI analysis of reference images — reproduce EXACTLY):
+{{ model_description }}
 
-Do NOT alter, modify, age, slim, widen, or change ANY physical attribute of this character.
+{% endif -%}
+Reproduce this EXACT character 1:1 IDENTICALLY in the new image.
+The reference images AND the description above define EVERY physical attribute.
+Do NOT alter, modify, age, slim, widen, or change ANY physical attribute.
 Do NOT make the character look "similar" or "inspired by" — make them IDENTICAL.
 
 ONLY the following are controlled by the prompt below (NOT from reference images):
