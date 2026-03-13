@@ -465,14 +465,35 @@ with tab_model:
                     mime = "image/png" if ref_file.name.lower().endswith(".png") else "image/jpeg"
                     analysis_parts.append({"inlineData": {"mimeType": mime, "data": img_b64}})
 
-                # Use Pro for detailed text analysis — try multiple model names
-                analysis_models = [
-                    "gemini-2.5-pro-preview-05-06",
-                    "gemini-2.5-pro",
-                    "gemini-2.5-pro-preview-03-25",
-                    "gemini-2.0-pro",
-                    "gemini-1.5-pro",
-                ]
+                # Dynamically find a working text model for analysis
+                try:
+                    models_url = f"https://generativelanguage.googleapis.com/v1beta/models?key={gemini_key}"
+                    models_resp = requests.get(models_url, timeout=30)
+                    models_resp.raise_for_status()
+                    models_data = models_resp.json()
+
+                    # Find all models that support generateContent
+                    available_models = []
+                    for m in models_data.get("models", []):
+                        name = m.get("name", "").replace("models/", "")
+                        methods = m.get("supportedGenerationMethods", [])
+                        if "generateContent" in methods:
+                            available_models.append(name)
+
+                    # Prefer Pro models for detailed analysis, then Flash as fallback
+                    pro_candidates = [m for m in available_models if "pro" in m.lower() and "image" not in m.lower()]
+                    flash_candidates = [m for m in available_models if "flash" in m.lower() and "image" not in m.lower()]
+                    analysis_models = pro_candidates + flash_candidates
+
+                    if not analysis_models:
+                        # Last resort: try any model
+                        analysis_models = [m for m in available_models if "image" not in m.lower()]
+
+                    st.caption(f"🔍 {len(analysis_models)} Text-Modelle gefunden: {', '.join(analysis_models[:5])}...")
+
+                except Exception as e:
+                    st.error(f"❌ Konnte Modell-Liste nicht laden: {e}")
+                    analysis_models = []
 
                 analysis_success = False
                 for analysis_model in analysis_models:
@@ -485,10 +506,17 @@ with tab_model:
 
                     try:
                         resp = requests.post(analysis_url, json=analysis_payload,
-                                             headers={"Content-Type": "application/json"}, timeout=60)
+                                             headers={"Content-Type": "application/json"}, timeout=120)
                         if resp.status_code == 404:
                             continue  # Model not found, try next
-                        resp.raise_for_status()
+                        if resp.status_code != 200:
+                            error_msg = ""
+                            try:
+                                error_msg = resp.json().get("error", {}).get("message", resp.text[:200])
+                            except:
+                                error_msg = resp.text[:200]
+                            st.caption(f"⚠️ {analysis_model}: {resp.status_code} — {error_msg}")
+                            continue
                         data = resp.json()
 
                         description = ""
