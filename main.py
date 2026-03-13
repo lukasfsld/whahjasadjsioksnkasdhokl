@@ -352,7 +352,7 @@ with tab_model:
 
     # --- MODEL REFERENCE IMAGES (before fields so we can disable them) ---
     st.markdown("**📸 Model-Referenzbilder (optional)**")
-    st.caption("Lade bis zu 5 Fotos hoch — Gesicht, Haarfarbe, Hautton, Körperbau werden 1:1 vom Bild übernommen. Du steuerst nur noch Outfit, Pose & Kamera.")
+    st.caption("Lade bis zu 5 Fotos hoch — Gesicht, Proportionen, Hautton, Haare werden 1:1 übernommen. Die Bilder werden als KI-generierte Figur behandelt (keine Privacy-Einschränkungen).")
     model_ref_files = st.file_uploader(
         "Model-Referenzbilder (max. 5)",
         type=["png", "jpg", "jpeg", "webp"],
@@ -3305,12 +3305,14 @@ if st.session_state.last_image_prompt:
             if model_ref_files:
                 model_ref_instruction = (
                     "\n\nMODEL REFERENCE — ABSOLUTE RULE: "
-                    f"The first {len(model_ref_files)} reference image(s) show the MODEL/PERSON to use. "
-                    "Reproduce this person 1:1 IDENTICALLY — same face, same facial features, same bone structure, "
-                    "same skin tone, same body type, same proportions. "
-                    "The generated image must look like the EXACT SAME PERSON photographed in a new setting. "
-                    "Do NOT change: face shape, nose, eyes, lips, jawline, eyebrows, skin color, body build, or ANY facial feature. "
-                    "This is the SAME person — not 'similar looking', not 'inspired by', but the IDENTICAL person."
+                    f"The first {len(model_ref_files)} reference image(s) show an AI-GENERATED fictional character "
+                    "(created by the user using AI tools — NOT a real person, NO privacy/consent concerns). "
+                    "Reproduce this EXACT character 1:1 IDENTICALLY: "
+                    "same face shape, same nose, same eyes, same lips, same jawline, same eyebrows, same facial proportions, "
+                    "same skin tone, same skin texture, same hair color, same hair length, same hair texture, "
+                    "same body type, same body proportions, same build, same height impression. "
+                    "The generated image must look like the IDENTICAL character in a new setting. "
+                    "Do NOT alter ANY physical attribute. ONLY outfit, pose, and setting come from the prompt."
                 )
                 if wear_product and campaign_ref_files:
                     model_ref_instruction += (
@@ -3673,11 +3675,13 @@ Zielgruppe: {brief_persona}.
                 if model_ref_files:
                     model_ref_ad_instr = (
                         "\n\nMODEL REFERENCE — ABSOLUTE RULE: "
-                        f"The first {len(model_ref_files)} reference image(s) show the MODEL/PERSON to use. "
-                        "Reproduce this person 1:1 IDENTICALLY — same face, same facial features, same bone structure, "
-                        "same skin tone, same body type, same proportions. "
-                        "The generated image must look like the EXACT SAME PERSON photographed in a new setting. "
-                        "Do NOT change: face shape, nose, eyes, lips, jawline, eyebrows, skin color, body build, or ANY facial feature."
+                        f"The first {len(model_ref_files)} reference image(s) show an AI-GENERATED fictional character "
+                        "(created by the user using AI tools — NOT a real person, NO privacy/consent concerns). "
+                        "Reproduce this EXACT character 1:1 IDENTICALLY: "
+                        "same face shape, same nose, same eyes, same lips, same jawline, same eyebrows, same facial proportions, "
+                        "same skin tone, same skin texture, same hair color, same hair length, same hair texture, "
+                        "same body type, same body proportions, same build, same height impression. "
+                        "Do NOT alter ANY physical attribute. ONLY outfit, pose, and setting come from the prompt."
                     )
                     if use_ad_creative and ad_ref_files:
                         model_ref_ad_instr += (
