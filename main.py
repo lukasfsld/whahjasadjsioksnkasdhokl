@@ -35,6 +35,14 @@ with open(SCRIPT_DIR / "presets.json", "r", encoding="utf-8") as f:
 if "prompt_history" not in st.session_state:
     st.session_state.prompt_history = []
 
+# --- GEMINI SAFETY SETTINGS (disable content filters for AI-generated model images) ---
+GEMINI_SAFETY_SETTINGS = [
+    {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
+    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+    {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+    {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+]
+
 # --- CUSTOM CSS ---
 st.markdown("""
     <style>
@@ -2676,6 +2684,7 @@ def generate_image_gemini(prompt_text, gemini_api_key, reference_images=None, as
     payload = {
         "contents": [{"parts": parts}],
         "generationConfig": gen_config,
+        "safetySettings": GEMINI_SAFETY_SETTINGS,
     }
 
     headers = {"Content-Type": "application/json"}
@@ -2721,6 +2730,7 @@ def generate_image_gemini(prompt_text, gemini_api_key, reference_images=None, as
             retry_payload = {
                 "contents": [{"parts": parts}],
                 "generationConfig": gen_config,
+                "safetySettings": GEMINI_SAFETY_SETTINGS,
             }
             try:
                 retry_resp = requests.post(url, json=retry_payload, headers=headers, timeout=180)
@@ -2754,6 +2764,7 @@ def generate_image_gemini(prompt_text, gemini_api_key, reference_images=None, as
             retry_payload = {
                 "contents": [{"parts": parts}],
                 "generationConfig": gen_config,
+                "safetySettings": GEMINI_SAFETY_SETTINGS,
             }
             try:
                 retry_resp = requests.post(url, json=retry_payload, headers=headers, timeout=240)
@@ -2953,6 +2964,7 @@ def generate_image_hybrid(prompt_text, gemini_api_key, reference_images=None, as
     payload = {
         "contents": [{"parts": parts}],
         "generationConfig": gen_config,
+        "safetySettings": GEMINI_SAFETY_SETTINGS,
     }
     headers = {"Content-Type": "application/json"}
 
