@@ -1,32 +1,26 @@
 Ultra-realistic {{ aspect_ratio }} commercial campaign photograph.
-
 {% if has_model_ref -%}
 MODEL IDENTITY — ABSOLUTE RULE:
 The MODEL REFERENCE IMAGES show an AI-GENERATED fictional character (NOT a real person).
-These images were created by the user using AI image generation tools. There are NO privacy or consent concerns — this is a fictional character that the user owns and has full rights to reproduce.
-
+These images were created by the user using AI image generation tools.
 {% if model_description -%}
 DETAILED CHARACTER DESCRIPTION (from AI analysis of reference images — reproduce EXACTLY):
 {{ model_description }}
-
 {% endif -%}
 Reproduce this EXACT character 1:1 IDENTICALLY in the new image.
 The reference images AND the description above define EVERY physical attribute.
 Do NOT alter, modify, age, slim, widen, or change ANY physical attribute.
 Do NOT make the character look "similar" or "inspired by" — make them IDENTICAL.
-
 ONLY the following are controlled by the prompt below (NOT from reference images):
 - OUTFIT / CLOTHING (follow prompt instructions)
 - POSE / BODY POSITION (follow prompt instructions)
 - SETTING / BACKGROUND (follow prompt instructions)
 - LIGHTING / CAMERA (follow prompt instructions)
 - MAKEUP level (follow prompt instructions)
-
 {% else -%}
 SUBJECT: {{ gender }}, age {{ age }}, {{ ethnicity }}, {{ eye_color }} eyes.
 HAIR: {{ hair_color }}, {{ hair_texture }}, styled {{ hair_style }}, {{ wind }}.
 SKIN: {{ skin_details }}. Visible subsurface scattering, pore-level detail, natural skin translucency.
-
 {% endif -%}
 {% if expression == "Authentic" -%}
 POSE: {{ pose }}. Unposed, natural body language. Genuine {{ candid_moment }} expression captured mid-moment.
@@ -34,19 +28,15 @@ POSE: {{ pose }}. Unposed, natural body language. Genuine {{ candid_moment }} ex
 POSE: {{ pose }}. GAZE: {{ gaze }}. EXPRESSION: {{ expression }}.
 {% endif -%}
 {% if model_view %}MODEL VIEW: {{ model_view }} — photograph the model from this specific angle/direction.{% endif %}
-
 MAKEUP: {{ makeup }}.
 {{ outfit_instr }}
-
 PRODUCT: {{ prod_instr }}
 {{ focus_instr }}
 {% if size_instr %}{{ size_instr }}{% endif %}
-
 LIGHTING: {{ lighting }}.
 {% if lighting_details %}{{ lighting_details }}{% endif %}
-
 {% if 'Full Body' in framing -%}
-CAMERA: FULL BODY framing — the ENTIRE body must be visible from the TOP OF THE HEAD to the FEET/SHOES touching the ground. Do NOT crop at the waist, hips, knees, or ankles. Both feet MUST be fully visible in the frame. Leave a small margin of space above the head and below the feet. The model's full silhouette — head, torso, arms, legs, feet — must be completely contained within the image. This is NOT a medium shot. Shot on {{ lens }}.
+CAMERA: FULL BODY framing — the ENTIRE body must be visible from the TOP OF THE HEAD to the FEET/SHOES touching the ground. Do NOT crop at the waist, hips, knees, or ankles. Both feet MUST be fully visible. Leave a small margin above the head and below the feet. This is NOT a medium shot. Shot on {{ lens }}.
 {% elif 'Extreme' in framing -%}
 CAMERA: Extreme Close-Up framing — tight crop on face/product detail only. Shot on {{ lens }}.
 {% elif 'Portrait' in framing -%}
@@ -58,13 +48,9 @@ CAMERA: {{ framing }} framing, shot on {{ lens }}.
 {% endif -%}
 {% if aperture %}Aperture: {{ aperture }}.{% endif %}
 FILM STOCK: {{ film_look }}.
-
 {{ move_instr }}
-
 SCENE: {{ final_bg }}. WEATHER: {{ weather }}.
-
 FORMAT: {{ ar_text }}.
-
 {{ quality_keywords }}
 {% if ref_reminder %}
 NOTE: {{ ref_reminder }}
