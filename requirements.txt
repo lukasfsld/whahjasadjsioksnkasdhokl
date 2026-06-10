@@ -1,3 +1,5 @@
 streamlit
 jinja2
 requests
+matplotlib
+numpy
