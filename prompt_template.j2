@@ -21,6 +21,9 @@ ONLY the following are controlled by the prompt below (NOT from reference images
 SUBJECT: {{ gender }}, age {{ age }}, {{ ethnicity }}, {{ eye_color }} eyes.
 HAIR: {{ hair_color }}, {{ hair_texture }}, styled {{ hair_style }}, {{ wind }}.
 SKIN: {{ skin_details }}. Visible subsurface scattering, pore-level detail, natural skin translucency.
+{% if body_description %}
+{{ body_description }}
+{% endif %}
 {% endif -%}
 {% if expression == "Authentic" -%}
 POSE: {{ pose }}. Unposed, natural body language. Genuine {{ candid_moment }} expression captured mid-moment.
