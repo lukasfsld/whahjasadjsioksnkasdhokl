@@ -513,153 +513,214 @@ with tab_model:
         with body_preview_col:
             st.markdown("**👤 3D-Mannequin Vorschau**")
 
-            # --- THREE.JS 3D MANNEQUIN ---
+            # --- THREE.JS 3D MANNEQUIN (anatomisch korrekt) ---
             import streamlit.components.v1 as components
 
             def _s(v, lo, hi):
                 return lo + (v - 1) * (hi - lo) / 4
 
-            # Map slider values to Three.js radii (normalized, ~0-0.3 range)
-            r_sh = _s(prop_shoulders, 0.14, 0.26)
-            r_bu = _s(prop_bust, 0.11, 0.22)
-            r_wa = _s(prop_waist, 0.08, 0.20)
-            r_hp = _s(prop_hips, 0.13, 0.25)
-            r_th = _s(prop_thighs, 0.05, 0.13)
+            # Map slider values to body radii
+            r_sh = _s(prop_shoulders, 0.15, 0.27)
+            r_bu = _s(prop_bust, 0.12, 0.24)
+            r_wa = _s(prop_waist, 0.09, 0.21)
+            r_hp = _s(prop_hips, 0.14, 0.26)
+            r_th = _s(prop_thighs, 0.055, 0.13)
             r_ar = _s(prop_arms, 0.025, 0.065)
             n_len = _s(prop_neck, 0.04, 0.10)
-            l_len = _s(prop_legs_len, 0.50, 0.75)
-            mu_scale = 1.0 + (muscle_def - 1) * 0.04  # muscles slightly increase radii
+            l_len = _s(prop_legs_len, 0.48, 0.72)
+            mu_s = 1.0 + (muscle_def - 1) * 0.035
+            bust_proj = _s(prop_bust, 0.0, 0.06)   # front-only bust projection
+            butt_proj = _s(prop_hips, 0.0, 0.035)   # back-only butt projection
+
+            # Y positions
+            neck_top_y = 0.55 + n_len
+            neck_bot_y = 0.55
+            sh_y = 0.52
+            bu_y = 0.38
+            wa_y = 0.24
+            hp_y = 0.10
+            cr_y = -0.02
 
             threejs_html = f"""
-            <div id="mannequin" style="width:100%;height:420px;border-radius:14px;overflow:hidden;background:#12121e;"></div>
+            <div id="mannequin" style="width:100%;height:440px;border-radius:14px;overflow:hidden;background:#0e0e18;cursor:grab;"></div>
             <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
             <script>
             (function() {{
-                const container = document.getElementById('mannequin');
-                const W = container.clientWidth || 320, H = 420;
+                const el = document.getElementById('mannequin');
+                const W = el.clientWidth || 340, H = 440;
                 const scene = new THREE.Scene();
-                scene.background = new THREE.Color(0x12121e);
-                const camera = new THREE.PerspectiveCamera(32, W/H, 0.1, 50);
-                camera.position.set(0, 0.7, 3.2);
-                camera.lookAt(0, 0.55, 0);
+                scene.background = new THREE.Color(0x0e0e18);
+                const camera = new THREE.PerspectiveCamera(30, W/H, 0.1, 50);
+                camera.position.set(0, 0.35, 3.0);
+                camera.lookAt(0, 0.25, 0);
                 const renderer = new THREE.WebGLRenderer({{ antialias: true }});
                 renderer.setSize(W, H);
                 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-                container.appendChild(renderer.domElement);
+                renderer.toneMapping = THREE.ACESFilmicToneMapping;
+                el.appendChild(renderer.domElement);
 
-                // Lights
-                const key = new THREE.DirectionalLight(0xfff4e0, 0.9);
-                key.position.set(2, 3, 3);
-                scene.add(key);
-                const fill = new THREE.DirectionalLight(0xd0e0ff, 0.35);
-                fill.position.set(-2, 1, 1);
-                scene.add(fill);
-                scene.add(new THREE.AmbientLight(0x404050, 0.5));
+                // Lighting
+                const keyLight = new THREE.DirectionalLight(0xfff5e6, 0.95);
+                keyLight.position.set(2.5, 3, 3);
+                scene.add(keyLight);
+                const fillLight = new THREE.DirectionalLight(0xc8d8ff, 0.30);
+                fillLight.position.set(-2, 1, 1);
+                scene.add(fillLight);
+                const rimLight = new THREE.DirectionalLight(0xFFD37A, 0.25);
+                rimLight.position.set(0, 1, -3);
+                scene.add(rimLight);
+                scene.add(new THREE.AmbientLight(0x383848, 0.55));
 
-                const gold = new THREE.MeshPhongMaterial({{
-                    color: 0xFFD37A, specular: 0x554422, shininess: 40,
-                    transparent: true, opacity: 0.55
+                const skinMat = new THREE.MeshPhongMaterial({{
+                    color: 0xFFD37A, specular: 0x665533, shininess: 35,
+                    transparent: true, opacity: 0.55, side: THREE.DoubleSide
                 }});
-                const goldSolid = new THREE.MeshPhongMaterial({{
-                    color: 0xFFD37A, specular: 0x554422, shininess: 60,
+                const solidMat = new THREE.MeshPhongMaterial({{
+                    color: 0xFFD37A, specular: 0x665533, shininess: 50,
                     transparent: true, opacity: 0.75
                 }});
 
-                const body = new THREE.Group();
-
-                // Torso (LatheGeometry from profile curve)
-                const mu = {mu_scale:.3f};
-                const torsoProfile = [];
-                // Profile points: (radius, height) — bottom to top
-                const pts = [
-                    [{r_hp * mu_scale:.4f}, 0.00],   // hip bottom
-                    [{r_hp * mu_scale:.4f}, 0.08],   // hip
-                    [{(r_hp * 0.98) * mu_scale:.4f}, 0.12],
-                    [{r_wa * mu_scale:.4f}, 0.22],   // waist
-                    [{(r_wa * 1.02) * mu_scale:.4f}, 0.28],
-                    [{r_bu * mu_scale:.4f}, 0.38],   // bust
-                    [{(r_bu * 0.95) * mu_scale:.4f}, 0.44],
-                    [{r_sh * mu_scale:.4f}, 0.50],   // shoulders
-                    [{r_sh * 0.85 * mu_scale:.4f}, 0.53],
-                    [0.045, 0.55],                    // neck base
-                    [0.042, {0.55 + n_len:.3f}],      // neck top
+                // === CROSS-SECTION LOFTED BODY ===
+                // Each section: {{y, rx (side-side), rz (front-back base), bustP (front projection), buttP (back projection)}}
+                const mu = {mu_s:.4f};
+                const sections = [
+                    {{y:{neck_top_y:.3f}, rx:0.040*mu, rz:0.032, bustP:0, buttP:0}},
+                    {{y:{neck_bot_y:.3f}, rx:0.048*mu, rz:0.038, bustP:0, buttP:0}},
+                    {{y:{sh_y:.3f},       rx:{r_sh:.4f}*mu, rz:{r_sh*0.42:.4f}, bustP:0, buttP:0}},
+                    {{y:{sh_y - 0.04:.3f},rx:{r_sh*0.94:.4f}*mu, rz:{r_sh*0.44:.4f}+{bust_proj*0.15:.4f}, bustP:{bust_proj*0.3:.4f}, buttP:0}},
+                    {{y:{bu_y + 0.03:.3f},rx:{r_bu*0.97:.4f}*mu, rz:{r_sh*0.43:.4f}+{bust_proj*0.4:.4f}, bustP:{bust_proj*0.7:.4f}, buttP:0}},
+                    {{y:{bu_y:.3f},        rx:{r_bu:.4f}*mu, rz:{r_sh*0.42:.4f}, bustP:{bust_proj:.4f}, buttP:0}},
+                    {{y:{bu_y - 0.04:.3f},rx:{r_bu*0.93:.4f}*mu, rz:{r_sh*0.40:.4f}+{bust_proj*0.15:.4f}, bustP:{bust_proj*0.25:.4f}, buttP:0}},
+                    {{y:{wa_y + 0.04:.3f},rx:{r_wa*1.08:.4f}*mu, rz:{r_wa*0.72:.4f}, bustP:0, buttP:0}},
+                    {{y:{wa_y:.3f},        rx:{r_wa:.4f}*mu, rz:{r_wa*0.68:.4f}, bustP:0, buttP:0}},
+                    {{y:{wa_y - 0.03:.3f},rx:{r_wa*1.06:.4f}*mu, rz:{r_wa*0.70:.4f}, bustP:0, buttP:{butt_proj*0.15:.4f}}},
+                    {{y:{hp_y + 0.04:.3f},rx:{r_hp*0.92:.4f}*mu, rz:{r_hp*0.48:.4f}, bustP:0, buttP:{butt_proj*0.5:.4f}}},
+                    {{y:{hp_y:.3f},        rx:{r_hp:.4f}*mu, rz:{r_hp*0.50:.4f}, bustP:0, buttP:{butt_proj:.4f}}},
+                    {{y:{hp_y - 0.04:.3f},rx:{r_hp*0.95:.4f}*mu, rz:{r_hp*0.48:.4f}, bustP:0, buttP:{butt_proj*0.65:.4f}}},
+                    {{y:{cr_y + 0.02:.3f},rx:{r_hp*0.72:.4f}*mu, rz:{r_hp*0.40:.4f}, bustP:0, buttP:{butt_proj*0.2:.4f}}},
+                    {{y:{cr_y:.3f},        rx:{r_th*1.5:.4f}*mu, rz:{r_th*1.2:.4f}, bustP:0, buttP:0}},
                 ];
-                for (const p of pts) torsoProfile.push(new THREE.Vector2(p[0], p[1]));
-                const torsoGeom = new THREE.LatheGeometry(torsoProfile, 48);
-                const torso = new THREE.Mesh(torsoGeom, gold);
-                body.add(torso);
+
+                function loftBody(secs, segs) {{
+                    const pos = [], nrm = [], idx = [];
+                    const ring = segs + 1;
+                    for (let s = 0; s < secs.length; s++) {{
+                        const sec = secs[s];
+                        for (let i = 0; i <= segs; i++) {{
+                            const a = (i / segs) * Math.PI * 2;
+                            const sinA = Math.sin(a), cosA = Math.cos(a);
+                            // Front-only bust + back-only butt via max(0, ±sin)
+                            const fBoost = (sec.bustP || 0) * Math.max(0, sinA);
+                            const bBoost = (sec.buttP || 0) * Math.max(0, -sinA);
+                            const rz = sec.rz + fBoost + bBoost;
+                            const x = sec.rx * cosA;
+                            const z = rz * sinA;
+                            pos.push(x, sec.y, z);
+                            // Approximate outward normal
+                            const nx = cosA / Math.max(sec.rx, 0.01);
+                            const nz = sinA / Math.max(rz, 0.01);
+                            const len = Math.sqrt(nx*nx + nz*nz) || 1;
+                            nrm.push(nx/len, 0, nz/len);
+                        }}
+                    }}
+                    for (let s = 0; s < secs.length - 1; s++) {{
+                        for (let i = 0; i < segs; i++) {{
+                            const a = s * ring + i, b = (s+1) * ring + i;
+                            idx.push(a, b, a+1, a+1, b, b+1);
+                        }}
+                    }}
+                    const g = new THREE.BufferGeometry();
+                    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+                    g.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3));
+                    g.setIndex(idx);
+                    g.computeVertexNormals();
+                    return g;
+                }}
+
+                const body = new THREE.Group();
+                body.add(new THREE.Mesh(loftBody(sections, 48), skinMat));
 
                 // Head
-                const headY = {0.55 + n_len + 0.10:.3f};
-                const headGeom = new THREE.SphereGeometry(0.09, 24, 18);
-                const head = new THREE.Mesh(headGeom, goldSolid);
-                head.position.y = headY;
+                const head = new THREE.Mesh(new THREE.SphereGeometry(0.088, 24, 18), solidMat);
+                head.position.y = {neck_top_y:.3f} + 0.098;
+                head.scale.set(1, 1.08, 0.92);
                 body.add(head);
 
-                // Arms (cylinders, angled out)
-                function makeArm(side) {{
-                    const armR = {r_ar * mu_scale:.4f};
-                    const upperArm = new THREE.Mesh(
-                        new THREE.CylinderGeometry(armR, armR * 0.9, 0.28, 12),
-                        gold
-                    );
-                    upperArm.position.set(side * ({r_sh * mu_scale:.3f} + armR + 0.01), 0.40, 0);
-                    upperArm.rotation.z = side * 0.12;
-                    body.add(upperArm);
-                    const forearm = new THREE.Mesh(
-                        new THREE.CylinderGeometry(armR * 0.85, armR * 0.65, 0.26, 12),
-                        gold
-                    );
-                    forearm.position.set(side * ({r_sh * mu_scale:.3f} + armR + 0.02), 0.13, 0);
-                    forearm.rotation.z = side * 0.08;
-                    body.add(forearm);
-                }}
-                makeArm(1); makeArm(-1);
-
-                // Legs (cylinders)
-                const legLen = {l_len:.3f};
+                // Legs (tapered cylinders with knee)
                 function makeLeg(side) {{
-                    const thighR = {r_th * mu_scale:.4f};
-                    const upperLeg = new THREE.Mesh(
-                        new THREE.CylinderGeometry(thighR, thighR * 0.8, legLen * 0.52, 14),
-                        gold
-                    );
-                    upperLeg.position.set(side * ({r_hp * 0.4:.3f}), -(legLen * 0.26), 0);
-                    body.add(upperLeg);
-                    const lowerLeg = new THREE.Mesh(
-                        new THREE.CylinderGeometry(thighR * 0.75, thighR * 0.45, legLen * 0.50, 12),
-                        gold
-                    );
-                    lowerLeg.position.set(side * ({r_hp * 0.4:.3f}), -(legLen * 0.77), 0);
-                    body.add(lowerLeg);
+                    const tR = {r_th * mu_s:.4f};
+                    const gap = {r_hp * 0.35:.4f};
+                    // Upper leg
+                    const upper = new THREE.Mesh(
+                        new THREE.CylinderGeometry(tR, tR * 0.72, {l_len * 0.48:.4f}, 16), skinMat);
+                    upper.position.set(side * gap, {cr_y:.3f} - {l_len * 0.24:.4f}, 0);
+                    body.add(upper);
+                    // Lower leg
+                    const lower = new THREE.Mesh(
+                        new THREE.CylinderGeometry(tR * 0.68, tR * 0.38, {l_len * 0.48:.4f}, 14), skinMat);
+                    lower.position.set(side * gap, {cr_y:.3f} - {l_len * 0.72:.4f}, 0);
+                    body.add(lower);
                 }}
                 makeLeg(1); makeLeg(-1);
 
+                // Arms (with slight angle)
+                function makeArm(side) {{
+                    const aR = {r_ar * mu_s:.4f};
+                    const sx = side * ({r_sh * mu_s:.4f} + aR + 0.012);
+                    // Upper arm
+                    const upper = new THREE.Mesh(
+                        new THREE.CylinderGeometry(aR, aR * 0.82, 0.24, 12), skinMat);
+                    upper.position.set(sx, {sh_y:.3f} - 0.14, 0);
+                    upper.rotation.z = side * 0.10;
+                    body.add(upper);
+                    // Forearm
+                    const fore = new THREE.Mesh(
+                        new THREE.CylinderGeometry(aR * 0.78, aR * 0.50, 0.22, 12), skinMat);
+                    fore.position.set(sx + side * 0.01, {sh_y:.3f} - 0.37, 0);
+                    fore.rotation.z = side * 0.06;
+                    body.add(fore);
+                }}
+                makeArm(1); makeArm(-1);
+
                 scene.add(body);
 
-                // Grid lines (optional subtle ground)
-                const gridMat = new THREE.LineBasicMaterial({{ color: 0xFFD37A, transparent: true, opacity: 0.08 }});
-                for (let i = -5; i <= 5; i++) {{
-                    const g = new THREE.BufferGeometry().setFromPoints([
-                        new THREE.Vector3(i * 0.2, -{l_len:.2f} - 0.05, -1),
-                        new THREE.Vector3(i * 0.2, -{l_len:.2f} - 0.05, 1)
-                    ]);
-                    scene.add(new THREE.Line(g, gridMat));
+                // Subtle floor grid
+                const gridY = {cr_y:.3f} - {l_len:.3f} - 0.06;
+                const gMat = new THREE.LineBasicMaterial({{color: 0xFFD37A, transparent: true, opacity: 0.06}});
+                for (let i = -4; i <= 4; i++) {{
+                    const pts1 = [new THREE.Vector3(i*0.15, gridY, -0.6), new THREE.Vector3(i*0.15, gridY, 0.6)];
+                    const pts2 = [new THREE.Vector3(-0.6, gridY, i*0.15), new THREE.Vector3(0.6, gridY, i*0.15)];
+                    scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts1), gMat));
+                    scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts2), gMat));
                 }}
 
-                // Auto-rotate
-                let angle = 0;
+                // Mouse / touch rotation
+                let dragging = false, prevX = 0, prevY = 0;
+                let rotY = 0, rotX = 0, autoAngle = 0, idleTime = 0;
+                el.addEventListener('pointerdown', (e) => {{ dragging = true; prevX = e.clientX; prevY = e.clientY; el.style.cursor = 'grabbing'; }});
+                window.addEventListener('pointermove', (e) => {{
+                    if (!dragging) return;
+                    rotY += (e.clientX - prevX) * 0.008;
+                    rotX += (e.clientY - prevY) * 0.006;
+                    rotX = Math.max(-0.8, Math.min(0.8, rotX));
+                    prevX = e.clientX; prevY = e.clientY;
+                    idleTime = 0;
+                }});
+                window.addEventListener('pointerup', () => {{ dragging = false; el.style.cursor = 'grab'; }});
+
                 function animate() {{
                     requestAnimationFrame(animate);
-                    angle += 0.008;
-                    body.rotation.y = angle;
+                    idleTime += 0.016;
+                    if (idleTime > 2.0) autoAngle += 0.006;
+                    body.rotation.y = rotY + autoAngle;
+                    body.rotation.x = rotX;
                     renderer.render(scene, camera);
                 }}
                 animate();
             }})();
             </script>
             """
-            components.html(threejs_html, height=440)
+            components.html(threejs_html, height=460)
 
         with body_settings_col:
             st.markdown("**📤 Body-Referenz für Gemini**")
