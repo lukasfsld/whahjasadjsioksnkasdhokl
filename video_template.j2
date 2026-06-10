@@ -1,40 +1,29 @@
 {{ image_prompt }}
-
---- VEO3 VIDEO GENERATION ---
-
+--- VEO VIDEO GENERATION ---
 DURATION: {{ duration }} seconds.
 ASPECT RATIO: {{ video_ratio }}.
-
 ACTION: {{ model_action }}.
 {% if action_detail %}DETAIL: {{ action_detail }}.{% endif %}
-
 MOVEMENT SPEED: {{ movement_speed }}.
 {{ camera_video_move }}
-
 {% if has_head_movement %}
-HEAD MOVEMENT: {{ head_movement }}. Speed: {{ head_speed }}. The motion should feel organic and intentional, not robotic.
+HEAD MOVEMENT: {{ head_movement }}. Speed: {{ head_speed }}. Organic and intentional, not robotic.
 {% endif %}
-
 {% if has_eye_movement %}
 EYE ANIMATION: {{ eye_movement }}.
 {% endif %}
 {% if has_eyebrow %}EYEBROWS: {{ eyebrow_move }}.{% endif %}
 {% if has_mouth %}MOUTH: {{ mouth_movement }}.{% endif %}
-
 {% if micro_list %}
-MICRO-EXPRESSIONS: {{ micro_list }}. These subtle movements should occur naturally throughout the clip to create a living, breathing presence.
+MICRO-EXPRESSIONS: {{ micro_list }}. Subtle movements throughout the clip for a living, breathing presence.
 {% endif %}
-
 {% if has_wind %}WIND: {{ wind_type }}. Hair and fabric react naturally to {{ wind_type | lower }}.{% endif %}
-
 {% if has_dialogue %}
 AUDIO/DIALOGUE: The model says: "{{ dialogue_text }}"
 VOICE TONE: {{ voice_tone }}.
-LIP SYNC: Perfectly synchronized lip movement matching the spoken words. Jaw, cheeks and throat move naturally with speech.
+LIP SYNC: Perfectly synchronized lip movement matching the spoken words.
 {% endif %}
-
 {% if has_ambient_sound %}AMBIENT SOUND: {{ ambient_sound }}.{% endif %}
-
-VIDEO QUALITY: Cinematic 4K, smooth {{ fps }}fps, natural motion blur, film-grade color grading, no flickering, no morphing artifacts.
-CONSISTENCY: Maintain identical model appearance, clothing, lighting and environment throughout the entire clip. No identity drift.
-REALISM: All facial and body movements must be fluid, human-like, and physically plausible. No uncanny valley stiffness.
+VIDEO QUALITY: Cinematic, smooth {{ fps }}fps, natural motion blur, film-grade color grading, no flickering, no morphing artifacts.
+CONSISTENCY: Maintain identical model appearance, clothing, lighting and environment throughout. No identity drift.
+REALISM: All facial and body movements fluid, human-like, physically plausible. No uncanny valley stiffness.
