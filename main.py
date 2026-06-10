@@ -37,10 +37,10 @@ if "prompt_history" not in st.session_state:
 # BLOCK_ONLY_HIGH: lässt normale Fashion-/Beauty-/Schmuck-Creatives durch (die Standard-Filter
 # blocken solche Bilder oft fälschlich), blockt aber weiterhin echte explizite Inhalte.
 GEMINI_SAFETY_SETTINGS = [
-    {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_NONE"},
-    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
-    {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
-    {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+    {"category": "HARM_CATEGORY_SEXUALLY_EXPLICIT", "threshold": "BLOCK_ONLY_HIGH"},
+    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_ONLY_HIGH"},
+    {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_ONLY_HIGH"},
+    {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_ONLY_HIGH"},
 ]
 
 # --- CUSTOM CSS ---
@@ -453,6 +453,195 @@ with tab_model:
             st.session_state.model_description = None
 
     has_model_ref = len(model_ref_files) > 0
+
+    # --- BODY PROPORTIONS (only when NOT using reference images) ---
+    if not has_model_ref:
+        st.markdown("---")
+        st.markdown('<div class="section-card"><h3>🏋️ Körperbau & Proportionen</h3></div>', unsafe_allow_html=True)
+        st.caption("Stelle Größe, Gewicht, Muskulatur und Körperproportionen ein — die SVG-Silhouette zeigt dir in Echtzeit wie dein Model aussehen wird.")
+
+        bp_left, bp_mid, bp_right = st.columns([1, 1, 1])
+
+        with bp_left:
+            st.markdown("**📏 Grundmaße**")
+            body_height = st.number_input("Größe (cm)", 150, 210, 172, 1, key="body_h")
+            body_weight = st.number_input("Gewicht (kg)", 40, 130, 62, 1, key="body_w")
+            body_type = st.selectbox("Körpertyp", [
+                "Slim / Schlank", "Normal / Durchschnitt", "Athletic / Sportlich",
+                "Curvy / Kurvig", "Muscular / Muskulös", "Plus Size / Kräftig",
+                "Petite / Zierlich", "Tall & Lean / Groß & Schlank",
+            ], index=0, key="body_type_sel")
+
+            st.markdown("**💪 Muskeldefinition**")
+            muscle_def = st.slider("Definition", 1, 5, 2, key="musc_def",
+                                   help="1 = weich/glatt · 3 = leicht definiert · 5 = sehr definiert, sichtbare Muskeln")
+            muscle_def_labels = {1: "Weich / Soft", 2: "Leicht tonisiert", 3: "Definiert",
+                                 4: "Sehr definiert", 5: "Stark muskulös"}
+            st.caption(f"→ {muscle_def_labels[muscle_def]}")
+
+        with bp_mid:
+            st.markdown("**🎛️ Proportionen** *(1 = schmal/kurz · 5 = breit/lang)*")
+            prop_shoulders = st.slider("Schulterbreite", 1, 5, 3, key="p_sh")
+            prop_neck      = st.slider("Halslänge", 1, 5, 3, key="p_nl")
+            prop_bust      = st.slider("Brust / Chest", 1, 5, 3, key="p_bu")
+            prop_waist     = st.slider("Taillenbreite", 1, 5, 2, key="p_wa")
+            prop_hips      = st.slider("Hüftbreite", 1, 5, 3, key="p_hp")
+            prop_thighs    = st.slider("Oberschenkel", 1, 5, 3, key="p_th")
+            prop_arms      = st.slider("Armdicke", 1, 5, 2, key="p_ar")
+            prop_legs_len  = st.slider("Beinlänge (relativ)", 1, 5, 3, key="p_ll",
+                                       help="1 = kurze Beine · 5 = sehr lange Beine (Model-Proportionen)")
+
+        with bp_right:
+            st.markdown("**🔬 Muskelverteilung**")
+            st.caption("Wo sollen Muskeln betont sein?")
+            musc_upper = st.checkbox("Oberkörper (Schultern, Arme, Brust)", value=False, key="mu_upper")
+            musc_core  = st.checkbox("Core (Bauch, seitliche Bauchmuskeln)", value=False, key="mu_core")
+            musc_lower = st.checkbox("Unterkörper (Oberschenkel, Po, Waden)", value=False, key="mu_lower")
+            musc_back  = st.checkbox("Rücken (V-Shape, Latissimus)", value=False, key="mu_back")
+
+            st.markdown("**🦵 Extras**")
+            body_torso_len = st.select_slider("Oberkörper-Länge",
+                options=["Kurzer Oberkörper", "Durchschnitt", "Langer Oberkörper"],
+                value="Durchschnitt", key="torso_len")
+            body_waist_height = st.select_slider("Taillenhöhe",
+                options=["Niedrige Taille", "Durchschnitt", "Hohe Taille"],
+                value="Durchschnitt", key="waist_height")
+
+            # --- SVG SILHOUETTE PREVIEW ---
+            st.markdown("**👤 Vorschau**")
+
+            def generate_body_svg(sh, nl, bu, wa, hp, th, ar, mu_d):
+                """Generate body proportion SVG silhouette. All params 1-5."""
+                def s(v, lo, hi):
+                    return lo + (v - 1) * (hi - lo) / 4
+
+                cx, gold = 110, "#FFD37A"
+                S = s(sh,30,55); B = s(bu,22,47); W = s(wa,16,42)
+                H = s(hp,26,51); T = s(th,13,26); A = s(ar,5,14)
+                NL = s(nl,12,26); NW = 8; HR = 17
+
+                hcy = 26
+                ynt = hcy + HR + 2
+                ynb = ynt + NL
+                ysh = ynb + 4
+                ybu = ysh + 36
+                ywa = ybu + 33
+                yhp = ywa + 24
+                ycr = yhp + 20
+                ykn = ycr + 48
+                ycf = ykn + 18
+                yan = ycf + 28
+                yft = yan + 8
+                vh = int(yft + 18)
+
+                def poly(pts):
+                    return " ".join(f"{x:.0f},{y:.0f}" for x, y in pts)
+
+                # Muscle definition → more angular shapes
+                ang = 0 if mu_d < 3 else (mu_d - 2) * 1.5
+
+                torso = poly([
+                    (cx+NW, ynt), (cx+NW, ynb),
+                    (cx+S, ysh),
+                    (cx+B+ang, ybu),
+                    (cx+W, ywa),
+                    (cx+H, yhp),
+                    (cx+T+7, ycr),
+                    (cx-T-7, ycr),
+                    (cx-H, yhp),
+                    (cx-W, ywa),
+                    (cx-B-ang, ybu),
+                    (cx-S, ysh),
+                    (cx-NW, ynb), (cx-NW, ynt),
+                ])
+                rleg = poly([
+                    (cx+T+7, ycr), (cx+T+4, ykn), (cx+T+2, ycf),
+                    (cx+7, yan), (cx+8, yft),
+                    (cx+2, yft), (cx+3, yan), (cx+4, ycf),
+                    (cx+3, ykn), (cx+2, ycr),
+                ])
+                lleg = poly([
+                    (cx-2, ycr), (cx-3, ykn), (cx-4, ycf),
+                    (cx-3, yan), (cx-2, yft),
+                    (cx-8, yft), (cx-7, yan), (cx-T-2, ycf),
+                    (cx-T-4, ykn), (cx-T-7, ycr),
+                ])
+                rarm = poly([
+                    (cx+S, ysh+2), (cx+S+A, ysh+4),
+                    (cx+S+A-1, ywa-8), (cx+S-2, ywa-10),
+                ])
+                larm = poly([
+                    (cx-S, ysh+2), (cx-S-A, ysh+4),
+                    (cx-S-A+1, ywa-8), (cx-S+2, ywa-10),
+                ])
+
+                markers = ""
+                levels = [("Schultern", ysh, S), ("Brust", ybu, B+ang),
+                          ("Taille", ywa, W), ("Hüfte", yhp, H)]
+                for label, yy, hw in levels:
+                    markers += (f'<line x1="{cx-hw:.0f}" y1="{yy:.0f}" x2="{cx+hw:.0f}" y2="{yy:.0f}" '
+                                f'stroke="{gold}" stroke-width="0.5" stroke-dasharray="3,3" opacity="0.35"/>')
+                    markers += (f'<text x="{cx+hw+4:.0f}" y="{yy+3:.0f}" fill="{gold}" '
+                                f'font-size="7.5" font-family="Inter,sans-serif" opacity="0.45">{label}</text>')
+
+                svg = f'''<svg viewBox="0 0 220 {vh}" xmlns="http://www.w3.org/2000/svg"
+                          style="max-height:340px;display:block;margin:0 auto;">
+                  <defs>
+                    <linearGradient id="bf" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stop-color="{gold}" stop-opacity="0.20"/>
+                      <stop offset="100%" stop-color="{gold}" stop-opacity="0.06"/>
+                    </linearGradient>
+                  </defs>
+                  <rect width="220" height="{vh}" fill="#12121e" rx="14"/>
+                  <circle cx="{cx}" cy="{hcy}" r="{HR}" fill="url(#bf)" stroke="{gold}" stroke-width="1.3" opacity="0.75"/>
+                  <polygon points="{torso}" fill="url(#bf)" stroke="{gold}" stroke-width="1.3" stroke-linejoin="round"/>
+                  <polygon points="{rleg}" fill="url(#bf)" stroke="{gold}" stroke-width="1.1" stroke-linejoin="round"/>
+                  <polygon points="{lleg}" fill="url(#bf)" stroke="{gold}" stroke-width="1.1" stroke-linejoin="round"/>
+                  <polygon points="{rarm}" fill="url(#bf)" stroke="{gold}" stroke-width="1.1" stroke-linejoin="round"/>
+                  <polygon points="{larm}" fill="url(#bf)" stroke="{gold}" stroke-width="1.1" stroke-linejoin="round"/>
+                  {markers}
+                </svg>'''
+                return svg
+
+            svg_preview = generate_body_svg(prop_shoulders, prop_neck, prop_bust, prop_waist,
+                                            prop_hips, prop_thighs, prop_arms, muscle_def)
+            st.markdown(svg_preview, unsafe_allow_html=True)
+
+        # --- BUILD BODY DESCRIPTION FOR PROMPT ---
+        prop_labels = {
+            1: "very narrow/short", 2: "narrow/short", 3: "average",
+            4: "wide/long", 5: "very wide/long"
+        }
+        muscle_labels = {
+            1: "soft, no visible muscle definition",
+            2: "lightly toned, subtle definition",
+            3: "defined, visible muscle tone",
+            4: "very defined, clearly visible muscles, veins partially visible",
+            5: "heavily muscular, bodybuilder-adjacent, prominent vascularity"
+        }
+        muscle_zones = []
+        if musc_upper: muscle_zones.append("upper body (shoulders, arms, chest)")
+        if musc_core:  muscle_zones.append("core (abs, obliques)")
+        if musc_lower: muscle_zones.append("lower body (thighs, glutes, calves)")
+        if musc_back:  muscle_zones.append("back (lats, V-shape taper)")
+
+        body_description = (
+            f"BODY BUILD: {body_type}. Height {body_height}cm, weight approximately {body_weight}kg.\n"
+            f"PROPORTIONS: Shoulders {prop_labels[prop_shoulders]}, "
+            f"neck {prop_labels[prop_neck]}, bust/chest {prop_labels[prop_bust]}, "
+            f"waist {prop_labels[prop_waist]}, hips {prop_labels[prop_hips]}, "
+            f"thighs {prop_labels[prop_thighs]}, arms {prop_labels[prop_arms]}, "
+            f"legs {prop_labels[prop_legs_len]}.\n"
+            f"Torso length: {body_torso_len.lower()}. Waist height: {body_waist_height.lower()}.\n"
+            f"MUSCLE DEFINITION: {muscle_labels[muscle_def]}."
+        )
+        if muscle_zones:
+            body_description += f"\nMUSCLE EMPHASIS: Emphasize muscle definition in: {', '.join(muscle_zones)}."
+        if muscle_def >= 3 and not muscle_zones:
+            body_description += "\nMuscle definition evenly distributed across the body."
+
+    else:
+        body_description = ""
 
     st.markdown("---")
     col1, col2, col3, col4 = st.columns(4)
@@ -1527,6 +1716,8 @@ pendant design, number of stones, metal color, or size. This is a REAL product c
 
 SKIN: Realistic skin with natural texture, visible pores, subtle imperfections. NO airbrushed/plastic/CGI skin.
 
+{body_description}
+
 {"TEXT ELEMENTS TO INCLUDE IN THE IMAGE:" if text_elements else ""}
 {chr(10).join(text_elements)}
 {trust_badges_instr}
@@ -1707,7 +1898,8 @@ def build_prompt_local():
         model_description=st.session_state.get("model_description", ""),
         aspect_ratio=ar_text, gender=gender, age=age, ethnicity=ethnicity, eye_color=eye_color,
         hair_color=hair_color, hair_texture=hair_texture, hair_style=hair_style, wind=wind,
-        skin_details=skin_details, pose=pose, gaze=gaze, expression=expression,
+        skin_details=skin_details, body_description=body_description,
+        pose=pose, gaze=gaze, expression=expression,
         model_view=model_view_campaign if model_view_campaign and "Automatisch" not in model_view_campaign else "",
         candid_moment=candid_moment or "", makeup=makeup, outfit_instr=outfit_instr, prod_instr=prod_instr,
         focus_instr=focus_instr, size_instr=size_instr, lighting=lighting, lighting_details=lighting_details,
