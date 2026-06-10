@@ -486,6 +486,8 @@ with tab_model:
             prop_bust      = st.slider("Brust / Chest", 1, 5, 3, key="p_bu")
             prop_waist     = st.slider("Taillenbreite", 1, 5, 2, key="p_wa")
             prop_hips      = st.slider("Hüftbreite", 1, 5, 3, key="p_hp")
+            prop_butt      = st.slider("Po / Gesäß", 1, 5, 3, key="p_bt",
+                                       help="1 = flach · 3 = durchschnitt · 5 = sehr ausgeprägt (ragt nach hinten)")
             prop_thighs    = st.slider("Oberschenkel", 1, 5, 3, key="p_th")
             prop_arms      = st.slider("Armdicke", 1, 5, 2, key="p_ar")
             prop_legs_len  = st.slider("Beinlänge (relativ)", 1, 5, 3, key="p_ll",
@@ -527,8 +529,8 @@ with tab_model:
             n_len = _s(prop_neck, 0.04, 0.10)
             l_len = _s(prop_legs_len, 0.48, 0.72)
             mu_s = 1.0 + (muscle_def - 1) * 0.035
-            bust_p = _s(prop_bust, 0.0, 0.055)
-            butt_p = _s(prop_hips, 0.0, 0.03)
+            bust_p = _s(prop_bust, 0.0, 0.09)
+            butt_p = _s(prop_butt, 0.0, 0.06)
             depth_base = 0.38
 
             nt_y = 0.55 + n_len; nb_y = 0.55; sh_y = 0.52
@@ -755,7 +757,7 @@ with tab_model:
                 import numpy as np
                 from io import BytesIO
 
-                def render_body_reference_png(sh, nl, bu, wa, hp, th, ar, mu_d, height_cm, weight_kg, btype):
+                def render_body_reference_png(sh, nl, bu, wa, hp, bt, th, ar, mu_d, height_cm, weight_kg, btype):
                     """Render front + side body silhouette as PNG using matplotlib bezier paths."""
                     fig, (ax_f, ax_s) = plt.subplots(1, 2, figsize=(5, 5.5), dpi=140,
                                                       gridspec_kw={'width_ratios': [1, 0.7]})
@@ -770,8 +772,8 @@ with tab_model:
                     W = sv(wa, 0.20, 0.42); H = sv(hp, 0.30, 0.55)
                     T = sv(th, 0.11, 0.25); A = sv(ar, 0.05, 0.13)
                     NL = sv(nl, 0.06, 0.13); NW = 0.050
-                    bust_fwd = sv(bu, 0.0, 0.12)
-                    butt_bk = sv(hp, 0.0, 0.08)
+                    bust_fwd = sv(bu, 0.0, 0.18)
+                    butt_bk = sv(bt, 0.0, 0.14)
                     depth = 0.38
 
                     # Y positions (0 = feet, ~2 = head)
@@ -792,35 +794,53 @@ with tab_model:
                         ax.add_patch(head)
 
                         # Define right body outline (y ascending → shoulder to foot)
-                        # Using many points + np.interp, NO smoothing
+                        # Many control points for smooth, natural curves
                         ys = np.array([
-                            y_ft, y_ft+0.01,
-                            y_an-0.01, y_an, y_an+0.02,
-                            y_an+0.06, y_an+0.10,  # calf
-                            y_kn-0.04, y_kn, y_kn+0.04,  # knee
-                            y_kn+0.10, y_kn+0.14,  # lower thigh
-                            y_cr-0.08, y_cr-0.04, y_cr,  # upper thigh to crotch
-                            y_cr+0.03,  # above crotch
-                            y_hp-0.06, y_hp-0.03, y_hp, y_hp+0.03,  # hip
-                            y_wa-0.06, y_wa-0.03, y_wa, y_wa+0.03,  # waist
-                            y_bu-0.06, y_bu-0.03, y_bu, y_bu+0.03,  # bust
-                            y_sh-0.04, y_sh-0.02, y_sh,  # shoulder
-                            y_sh+0.02,  # above shoulder
-                            y_nb-0.01, y_nb, y_nt,  # neck
+                            # Feet & ankle
+                            y_ft, y_ft+0.01, y_an-0.01, y_an, y_an+0.02,
+                            # Calf (gentle swell)
+                            y_an+0.06, y_an+0.10, y_an+0.14,
+                            # Knee (slight narrowing)
+                            y_kn-0.06, y_kn-0.03, y_kn, y_kn+0.03, y_kn+0.06,
+                            # Thigh (gradual widening)
+                            y_kn+0.10, y_kn+0.14, y_cr-0.10, y_cr-0.06, y_cr-0.03, y_cr,
+                            # Crotch → Hip (wide gradual transition)
+                            y_cr+0.02, y_cr+0.05, y_hp-0.08, y_hp-0.05, y_hp-0.02,
+                            y_hp, y_hp+0.02, y_hp+0.05,
+                            # Hip → Waist (smooth inward)
+                            y_hp+0.08, y_wa-0.08, y_wa-0.05, y_wa-0.02,
+                            y_wa, y_wa+0.02, y_wa+0.05,
+                            # Waist → Bust (gradual swell, NOT spiky)
+                            y_wa+0.08, y_bu-0.12, y_bu-0.08, y_bu-0.05, y_bu-0.02,
+                            y_bu, y_bu+0.02, y_bu+0.05, y_bu+0.08,
+                            # Bust → Shoulder
+                            y_bu+0.12, y_sh-0.08, y_sh-0.04, y_sh-0.02,
+                            y_sh, y_sh+0.02,
+                            # Neck
+                            y_nb-0.01, y_nb, y_nt,
                         ])
                         xs = np.array([
-                            0.055, 0.055,
-                            0.045, 0.048, 0.052,
-                            T*0.55+0.02, T*0.60+0.02,
-                            T*0.65, T*0.62, T*0.68,
-                            T*0.80, T*0.88,
-                            T*0.95, T, T+0.02,
-                            H*0.55,
-                            H*0.82, H*0.93, H, H*0.98,
-                            W+(H-W)*0.4, W*1.06, W, W*1.04,
-                            B*0.90, B*0.97, B, B*0.96,
-                            S*0.88, S*0.96, S,
-                            S*0.65,
+                            # Feet & ankle
+                            0.050, 0.050, 0.042, 0.045, 0.048,
+                            # Calf
+                            T*0.50+0.02, T*0.55+0.02, T*0.52+0.02,
+                            # Knee
+                            T*0.56, T*0.52, T*0.50, T*0.54, T*0.60,
+                            # Thigh
+                            T*0.72, T*0.82, T*0.90, T*0.96, T*1.0, T*1.02,
+                            # Crotch → Hip (wide gradual swell)
+                            H*0.48, H*0.58, H*0.72, H*0.82, H*0.92,
+                            H, H*1.0, H*0.98,
+                            # Hip → Waist
+                            H*0.94, H*0.80, W+(H-W)*0.35, W*1.08,
+                            W, W*1.02, W*1.06,
+                            # Waist → Bust (GRADUAL round swell)
+                            W+(B-W)*0.15, W+(B-W)*0.30, W+(B-W)*0.50, W+(B-W)*0.72, B*0.95,
+                            B, B*0.98, B*0.94, B*0.88,
+                            # Bust → Shoulder
+                            B*0.82, S*0.75, S*0.88, S*0.95,
+                            S, S*0.60,
+                            # Neck
                             NW+0.01, NW, NW,
                         ])
 
@@ -831,7 +851,7 @@ with tab_model:
 
                         # Very light smoothing (3-point average, preserves shape)
                         x_sm = np.copy(x_fine)
-                        for _ in range(3):
+                        for _ in range(5):
                             x_sm[1:-1] = (x_sm[:-2] + x_sm[1:-1] + x_sm[2:]) / 3
 
                         ax.fill_betweenx(y_fine, -x_sm, x_sm, color=goldfill, alpha=0.12, lw=0)
@@ -911,7 +931,7 @@ with tab_model:
                         xb_fine = np.interp(y_fine, ys_s, xb_s)
 
                         for arr in [xf_fine, xb_fine]:
-                            for _ in range(3):
+                            for _ in range(5):
                                 arr[1:-1] = (arr[:-2] + arr[1:-1] + arr[2:]) / 3
 
                         ax.fill_betweenx(y_fine, xb_fine, xf_fine, color=goldfill, alpha=0.12, lw=0)
@@ -942,7 +962,7 @@ with tab_model:
 
                 body_ref_png = render_body_reference_png(
                     prop_shoulders, prop_neck, prop_bust, prop_waist, prop_hips,
-                    prop_thighs, prop_arms, muscle_def, body_height, body_weight, body_type)
+                    prop_butt, prop_thighs, prop_arms, muscle_def, body_height, body_weight, body_type)
                 st.session_state["body_ref_png"] = body_ref_png
                 st.image(body_ref_png, caption="Front + Seite (wird an Gemini gesendet)", use_container_width=True)
             else:
@@ -974,6 +994,7 @@ with tab_model:
             f"PROPORTIONS: Shoulders {prop_labels[prop_shoulders]}, "
             f"neck {prop_labels[prop_neck]}, bust/chest {prop_labels[prop_bust]}, "
             f"waist {prop_labels[prop_waist]}, hips {prop_labels[prop_hips]}, "
+            f"buttocks {'flat' if prop_butt <= 1 else 'subtle' if prop_butt == 2 else 'average' if prop_butt == 3 else 'pronounced' if prop_butt == 4 else 'very pronounced, protruding backwards'}, "
             f"thighs {prop_labels[prop_thighs]}, arms {prop_labels[prop_arms]}, "
             f"legs {prop_labels[prop_legs_len]}.\n"
             f"Torso length: {body_torso_len.lower()}. Waist height: {body_waist_height.lower()}.\n"
