@@ -458,7 +458,7 @@ with tab_model:
     if not has_model_ref:
         st.markdown("---")
         st.markdown('<div class="section-card"><h3>🏋️ Körperbau & Proportionen</h3></div>', unsafe_allow_html=True)
-        st.caption("Stelle Größe, Gewicht, Muskulatur und Körperproportionen ein — die SVG-Silhouette zeigt dir in Echtzeit wie dein Model aussehen wird.")
+        st.caption("Stelle Größe, Gewicht, Muskulatur und Proportionen ein — die 3D-Mannequin-Vorschau dreht sich automatisch. Optional als Referenzbild an Gemini sendbar.")
 
         bp_left, bp_mid, bp_right = st.columns([1, 1, 1])
 
@@ -507,105 +507,277 @@ with tab_model:
                 options=["Niedrige Taille", "Durchschnitt", "Hohe Taille"],
                 value="Durchschnitt", key="waist_height")
 
-            # --- SVG SILHOUETTE PREVIEW ---
-            st.markdown("**👤 Vorschau**")
+        # --- 3D MANNEQUIN + 2D REFERENCE ---
+        body_preview_col, body_settings_col = st.columns([2, 1])
 
-            def generate_body_svg(sh, nl, bu, wa, hp, th, ar, mu_d):
-                """Generate body proportion SVG silhouette. All params 1-5."""
-                def s(v, lo, hi):
-                    return lo + (v - 1) * (hi - lo) / 4
+        with body_preview_col:
+            st.markdown("**👤 3D-Mannequin Vorschau**")
 
-                cx, gold = 110, "#FFD37A"
-                S = s(sh,30,55); B = s(bu,22,47); W = s(wa,16,42)
-                H = s(hp,26,51); T = s(th,13,26); A = s(ar,5,14)
-                NL = s(nl,12,26); NW = 8; HR = 17
+            # --- THREE.JS 3D MANNEQUIN ---
+            import streamlit.components.v1 as components
 
-                hcy = 26
-                ynt = hcy + HR + 2
-                ynb = ynt + NL
-                ysh = ynb + 4
-                ybu = ysh + 36
-                ywa = ybu + 33
-                yhp = ywa + 24
-                ycr = yhp + 20
-                ykn = ycr + 48
-                ycf = ykn + 18
-                yan = ycf + 28
-                yft = yan + 8
-                vh = int(yft + 18)
+            def _s(v, lo, hi):
+                return lo + (v - 1) * (hi - lo) / 4
 
-                def poly(pts):
-                    return " ".join(f"{x:.0f},{y:.0f}" for x, y in pts)
+            # Map slider values to Three.js radii (normalized, ~0-0.3 range)
+            r_sh = _s(prop_shoulders, 0.14, 0.26)
+            r_bu = _s(prop_bust, 0.11, 0.22)
+            r_wa = _s(prop_waist, 0.08, 0.20)
+            r_hp = _s(prop_hips, 0.13, 0.25)
+            r_th = _s(prop_thighs, 0.05, 0.13)
+            r_ar = _s(prop_arms, 0.025, 0.065)
+            n_len = _s(prop_neck, 0.04, 0.10)
+            l_len = _s(prop_legs_len, 0.50, 0.75)
+            mu_scale = 1.0 + (muscle_def - 1) * 0.04  # muscles slightly increase radii
 
-                # Muscle definition → more angular shapes
-                ang = 0 if mu_d < 3 else (mu_d - 2) * 1.5
+            threejs_html = f"""
+            <div id="mannequin" style="width:100%;height:420px;border-radius:14px;overflow:hidden;background:#12121e;"></div>
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+            <script>
+            (function() {{
+                const container = document.getElementById('mannequin');
+                const W = container.clientWidth || 320, H = 420;
+                const scene = new THREE.Scene();
+                scene.background = new THREE.Color(0x12121e);
+                const camera = new THREE.PerspectiveCamera(32, W/H, 0.1, 50);
+                camera.position.set(0, 0.7, 3.2);
+                camera.lookAt(0, 0.55, 0);
+                const renderer = new THREE.WebGLRenderer({{ antialias: true }});
+                renderer.setSize(W, H);
+                renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+                container.appendChild(renderer.domElement);
 
-                torso = poly([
-                    (cx+NW, ynt), (cx+NW, ynb),
-                    (cx+S, ysh),
-                    (cx+B+ang, ybu),
-                    (cx+W, ywa),
-                    (cx+H, yhp),
-                    (cx+T+7, ycr),
-                    (cx-T-7, ycr),
-                    (cx-H, yhp),
-                    (cx-W, ywa),
-                    (cx-B-ang, ybu),
-                    (cx-S, ysh),
-                    (cx-NW, ynb), (cx-NW, ynt),
-                ])
-                rleg = poly([
-                    (cx+T+7, ycr), (cx+T+4, ykn), (cx+T+2, ycf),
-                    (cx+7, yan), (cx+8, yft),
-                    (cx+2, yft), (cx+3, yan), (cx+4, ycf),
-                    (cx+3, ykn), (cx+2, ycr),
-                ])
-                lleg = poly([
-                    (cx-2, ycr), (cx-3, ykn), (cx-4, ycf),
-                    (cx-3, yan), (cx-2, yft),
-                    (cx-8, yft), (cx-7, yan), (cx-T-2, ycf),
-                    (cx-T-4, ykn), (cx-T-7, ycr),
-                ])
-                rarm = poly([
-                    (cx+S, ysh+2), (cx+S+A, ysh+4),
-                    (cx+S+A-1, ywa-8), (cx+S-2, ywa-10),
-                ])
-                larm = poly([
-                    (cx-S, ysh+2), (cx-S-A, ysh+4),
-                    (cx-S-A+1, ywa-8), (cx-S+2, ywa-10),
-                ])
+                // Lights
+                const key = new THREE.DirectionalLight(0xfff4e0, 0.9);
+                key.position.set(2, 3, 3);
+                scene.add(key);
+                const fill = new THREE.DirectionalLight(0xd0e0ff, 0.35);
+                fill.position.set(-2, 1, 1);
+                scene.add(fill);
+                scene.add(new THREE.AmbientLight(0x404050, 0.5));
 
-                markers = ""
-                levels = [("Schultern", ysh, S), ("Brust", ybu, B+ang),
-                          ("Taille", ywa, W), ("Hüfte", yhp, H)]
-                for label, yy, hw in levels:
-                    markers += (f'<line x1="{cx-hw:.0f}" y1="{yy:.0f}" x2="{cx+hw:.0f}" y2="{yy:.0f}" '
-                                f'stroke="{gold}" stroke-width="0.5" stroke-dasharray="3,3" opacity="0.35"/>')
-                    markers += (f'<text x="{cx+hw+4:.0f}" y="{yy+3:.0f}" fill="{gold}" '
-                                f'font-size="7.5" font-family="Inter,sans-serif" opacity="0.45">{label}</text>')
+                const gold = new THREE.MeshPhongMaterial({{
+                    color: 0xFFD37A, specular: 0x554422, shininess: 40,
+                    transparent: true, opacity: 0.55
+                }});
+                const goldSolid = new THREE.MeshPhongMaterial({{
+                    color: 0xFFD37A, specular: 0x554422, shininess: 60,
+                    transparent: true, opacity: 0.75
+                }});
 
-                svg = f'''<svg viewBox="0 0 220 {vh}" xmlns="http://www.w3.org/2000/svg"
-                          style="max-height:340px;display:block;margin:0 auto;">
-                  <defs>
-                    <linearGradient id="bf" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stop-color="{gold}" stop-opacity="0.20"/>
-                      <stop offset="100%" stop-color="{gold}" stop-opacity="0.06"/>
-                    </linearGradient>
-                  </defs>
-                  <rect width="220" height="{vh}" fill="#12121e" rx="14"/>
-                  <circle cx="{cx}" cy="{hcy}" r="{HR}" fill="url(#bf)" stroke="{gold}" stroke-width="1.3" opacity="0.75"/>
-                  <polygon points="{torso}" fill="url(#bf)" stroke="{gold}" stroke-width="1.3" stroke-linejoin="round"/>
-                  <polygon points="{rleg}" fill="url(#bf)" stroke="{gold}" stroke-width="1.1" stroke-linejoin="round"/>
-                  <polygon points="{lleg}" fill="url(#bf)" stroke="{gold}" stroke-width="1.1" stroke-linejoin="round"/>
-                  <polygon points="{rarm}" fill="url(#bf)" stroke="{gold}" stroke-width="1.1" stroke-linejoin="round"/>
-                  <polygon points="{larm}" fill="url(#bf)" stroke="{gold}" stroke-width="1.1" stroke-linejoin="round"/>
-                  {markers}
-                </svg>'''
-                return svg
+                const body = new THREE.Group();
 
-            svg_preview = generate_body_svg(prop_shoulders, prop_neck, prop_bust, prop_waist,
-                                            prop_hips, prop_thighs, prop_arms, muscle_def)
-            st.markdown(svg_preview, unsafe_allow_html=True)
+                // Torso (LatheGeometry from profile curve)
+                const mu = {mu_scale:.3f};
+                const torsoProfile = [];
+                // Profile points: (radius, height) — bottom to top
+                const pts = [
+                    [{r_hp * mu_scale:.4f}, 0.00],   // hip bottom
+                    [{r_hp * mu_scale:.4f}, 0.08],   // hip
+                    [{(r_hp * 0.98) * mu_scale:.4f}, 0.12],
+                    [{r_wa * mu_scale:.4f}, 0.22],   // waist
+                    [{(r_wa * 1.02) * mu_scale:.4f}, 0.28],
+                    [{r_bu * mu_scale:.4f}, 0.38],   // bust
+                    [{(r_bu * 0.95) * mu_scale:.4f}, 0.44],
+                    [{r_sh * mu_scale:.4f}, 0.50],   // shoulders
+                    [{r_sh * 0.85 * mu_scale:.4f}, 0.53],
+                    [0.045, 0.55],                    // neck base
+                    [0.042, {0.55 + n_len:.3f}],      // neck top
+                ];
+                for (const p of pts) torsoProfile.push(new THREE.Vector2(p[0], p[1]));
+                const torsoGeom = new THREE.LatheGeometry(torsoProfile, 48);
+                const torso = new THREE.Mesh(torsoGeom, gold);
+                body.add(torso);
+
+                // Head
+                const headY = {0.55 + n_len + 0.10:.3f};
+                const headGeom = new THREE.SphereGeometry(0.09, 24, 18);
+                const head = new THREE.Mesh(headGeom, goldSolid);
+                head.position.y = headY;
+                body.add(head);
+
+                // Arms (cylinders, angled out)
+                function makeArm(side) {{
+                    const armR = {r_ar * mu_scale:.4f};
+                    const upperArm = new THREE.Mesh(
+                        new THREE.CylinderGeometry(armR, armR * 0.9, 0.28, 12),
+                        gold
+                    );
+                    upperArm.position.set(side * ({r_sh * mu_scale:.3f} + armR + 0.01), 0.40, 0);
+                    upperArm.rotation.z = side * 0.12;
+                    body.add(upperArm);
+                    const forearm = new THREE.Mesh(
+                        new THREE.CylinderGeometry(armR * 0.85, armR * 0.65, 0.26, 12),
+                        gold
+                    );
+                    forearm.position.set(side * ({r_sh * mu_scale:.3f} + armR + 0.02), 0.13, 0);
+                    forearm.rotation.z = side * 0.08;
+                    body.add(forearm);
+                }}
+                makeArm(1); makeArm(-1);
+
+                // Legs (cylinders)
+                const legLen = {l_len:.3f};
+                function makeLeg(side) {{
+                    const thighR = {r_th * mu_scale:.4f};
+                    const upperLeg = new THREE.Mesh(
+                        new THREE.CylinderGeometry(thighR, thighR * 0.8, legLen * 0.52, 14),
+                        gold
+                    );
+                    upperLeg.position.set(side * ({r_hp * 0.4:.3f}), -(legLen * 0.26), 0);
+                    body.add(upperLeg);
+                    const lowerLeg = new THREE.Mesh(
+                        new THREE.CylinderGeometry(thighR * 0.75, thighR * 0.45, legLen * 0.50, 12),
+                        gold
+                    );
+                    lowerLeg.position.set(side * ({r_hp * 0.4:.3f}), -(legLen * 0.77), 0);
+                    body.add(lowerLeg);
+                }}
+                makeLeg(1); makeLeg(-1);
+
+                scene.add(body);
+
+                // Grid lines (optional subtle ground)
+                const gridMat = new THREE.LineBasicMaterial({{ color: 0xFFD37A, transparent: true, opacity: 0.08 }});
+                for (let i = -5; i <= 5; i++) {{
+                    const g = new THREE.BufferGeometry().setFromPoints([
+                        new THREE.Vector3(i * 0.2, -{l_len:.2f} - 0.05, -1),
+                        new THREE.Vector3(i * 0.2, -{l_len:.2f} - 0.05, 1)
+                    ]);
+                    scene.add(new THREE.Line(g, gridMat));
+                }}
+
+                // Auto-rotate
+                let angle = 0;
+                function animate() {{
+                    requestAnimationFrame(animate);
+                    angle += 0.008;
+                    body.rotation.y = angle;
+                    renderer.render(scene, camera);
+                }}
+                animate();
+            }})();
+            </script>
+            """
+            components.html(threejs_html, height=440)
+
+        with body_settings_col:
+            st.markdown("**📤 Body-Referenz für Gemini**")
+            send_body_ref = st.checkbox("Body-Skizze an Gemini mitsenden", value=False, key="send_body_ref",
+                                        help="Rendert eine 2D-Silhouette und sendet sie als zusätzliches Referenzbild an Gemini — damit Gemini die Proportionen visuell 'sieht', nicht nur per Text.")
+
+            if send_body_ref:
+                st.caption("✅ Eine 2D-Referenz wird beim nächsten Generieren automatisch an Gemini mitgesendet.")
+
+                # --- RENDER 2D BODY REFERENCE (matplotlib → PNG) ---
+                import matplotlib
+                matplotlib.use("Agg")
+                import matplotlib.pyplot as plt
+                from matplotlib.patches import FancyBboxPatch
+                import numpy as np
+                from io import BytesIO
+
+                def render_body_reference_png(sh, nl, bu, wa, hp, th, ar, mu_d, height_cm, weight_kg, btype):
+                    """Render a clean 2D body proportion silhouette as PNG bytes using matplotlib."""
+                    fig, ax = plt.subplots(figsize=(3, 5.5), dpi=150)
+                    fig.patch.set_facecolor('#12121e')
+                    ax.set_facecolor('#12121e')
+                    ax.set_xlim(-1.15, 1.15)
+                    ax.set_ylim(-0.08, 2.12)
+                    ax.set_aspect('equal')
+                    ax.axis('off')
+
+                    gold = '#FFD37A'
+
+                    def sv(v, lo, hi):
+                        return lo + (v - 1) * (hi - lo) / 4
+
+                    S = sv(sh, 0.34, 0.62); B = sv(bu, 0.26, 0.50)
+                    W = sv(wa, 0.19, 0.44); H = sv(hp, 0.30, 0.56)
+                    T = sv(th, 0.11, 0.27); A = sv(ar, 0.05, 0.14)
+                    NL = sv(nl, 0.07, 0.15); NW = 0.055
+
+                    # Y positions
+                    y_head = 1.94; y_nt = 1.82; y_nb = y_nt - NL
+                    y_sh = y_nb - 0.02; y_bu = y_sh - 0.21; y_wa = y_bu - 0.19
+                    y_hp = y_wa - 0.15; y_cr = y_hp - 0.11
+                    y_kn = y_cr - 0.30; y_an = y_kn - 0.25; y_ft = y_an - 0.04
+
+                    # Define body outline as y → half-width pairs (extra points for smoothness)
+                    ys = np.array([y_ft, y_ft+0.01, y_an, y_an+0.08, y_kn-0.05, y_kn, y_kn+0.05,
+                                   y_cr-0.03, y_cr, y_cr+0.04,
+                                   y_hp-0.03, y_hp, y_hp+0.04,
+                                   y_wa-0.04, y_wa, y_wa+0.04,
+                                   y_bu-0.04, y_bu, y_bu+0.03,
+                                   y_sh-0.02, y_sh, y_nb, y_nt])
+                    xs = np.array([0.06, 0.06, 0.055, T*0.85, T*0.95, T, T+0.01,
+                                   T+0.03, T+0.04, H*0.85,
+                                   H*0.95, H, H*0.97,
+                                   W*1.05, W, W*1.03,
+                                   B*0.97, B, B*0.95,
+                                   S*0.92, S, NW, NW])
+
+                    # Sort by y ascending for interpolation
+                    sort_idx = np.argsort(ys)
+                    ys_sorted = ys[sort_idx]
+                    xs_sorted = xs[sort_idx]
+
+                    y_fine = np.linspace(ys_sorted[0], ys_sorted[-1], 500)
+                    x_fine = np.interp(y_fine, ys_sorted, xs_sorted)
+
+                    # Smooth with a simple rolling average
+                    kernel_size = 25
+                    kernel = np.ones(kernel_size) / kernel_size
+                    x_smooth = np.convolve(x_fine, kernel, mode='same')
+                    # Fix edges
+                    x_smooth[:kernel_size] = x_fine[:kernel_size]
+                    x_smooth[-kernel_size:] = x_fine[-kernel_size:]
+
+                    # Draw filled body
+                    ax.fill_betweenx(y_fine, -x_smooth, x_smooth,
+                                     color=gold, alpha=0.14, edgecolor=gold, linewidth=1.6)
+
+                    # Head
+                    head = plt.Circle((0, y_head), 0.085, facecolor=gold+'22', edgecolor=gold, linewidth=1.4)
+                    ax.add_patch(head)
+
+                    # Arms
+                    for side in [1, -1]:
+                        arm_x = side * (S + A/2 + 0.01)
+                        ax.plot([arm_x, arm_x], [y_sh - 0.02, y_wa + 0.02],
+                                color=gold, linewidth=A * 28, alpha=0.20, solid_capstyle='round')
+                        ax.plot([arm_x, arm_x], [y_sh - 0.02, y_wa + 0.02],
+                                color=gold, linewidth=1.2, alpha=0.65)
+
+                    # Measurement markers
+                    markers = [("Schultern", y_sh, S), ("Brust", y_bu, B),
+                               ("Taille", y_wa, W), ("Hüfte", y_hp, H)]
+                    for label, yy, hw in markers:
+                        ax.plot([-hw, hw], [yy, yy], color=gold, linewidth=0.5,
+                                linestyle='--', alpha=0.35)
+                        ax.text(hw + 0.04, yy, label, color=gold, fontsize=6.5,
+                                alpha=0.50, va='center', fontfamily='sans-serif')
+
+                    # Title
+                    ax.text(0, 0.0, f"{height_cm}cm · {weight_kg}kg · {btype.split('/')[0].strip()}",
+                            color=gold, fontsize=7, ha='center', alpha=0.55, fontfamily='sans-serif')
+
+                    buf = BytesIO()
+                    fig.savefig(buf, format='png', bbox_inches='tight', pad_inches=0.1, facecolor=fig.get_facecolor())
+                    plt.close(fig)
+                    buf.seek(0)
+                    return buf.getvalue()
+
+                body_ref_png = render_body_reference_png(
+                    prop_shoulders, prop_neck, prop_bust, prop_waist, prop_hips,
+                    prop_thighs, prop_arms, muscle_def, body_height, body_weight, body_type)
+                st.session_state["body_ref_png"] = body_ref_png
+                st.image(body_ref_png, caption="2D-Referenz die an Gemini gesendet wird", width=180)
+            else:
+                st.session_state["body_ref_png"] = None
+
+            st.markdown("---")
+            st.caption("💡 Die 3D-Ansicht dreht sich automatisch. Die Slider links/mitte steuern die Form in Echtzeit.")
 
         # --- BUILD BODY DESCRIPTION FOR PROMPT ---
         prop_labels = {
@@ -642,6 +814,7 @@ with tab_model:
 
     else:
         body_description = ""
+        st.session_state["body_ref_png"] = None
 
     st.markdown("---")
     col1, col2, col3, col4 = st.columns(4)
@@ -2645,9 +2818,27 @@ if st.session_state.last_image_prompt:
             if wear_product and campaign_ref_files:
                 st.info(f"📸 {len(campaign_ref_files)} Produkt-Referenzbild(er) werden mitgesendet...")
                 all_ref_imgs.extend(campaign_ref_files)
+
+            # Body reference PNG (if enabled)
+            body_ref_png_data = st.session_state.get("body_ref_png")
+            if body_ref_png_data:
+                class _PngRef:
+                    def __init__(self, data, name="body_reference.png"):
+                        self._data = data
+                        self.name = name
+                    def getvalue(self):
+                        return self._data
+                all_ref_imgs.append(_PngRef(body_ref_png_data))
+                st.info("🏋️ Body-Proportions-Referenz wird mitgesendet...")
+
             ref_imgs = all_ref_imgs if all_ref_imgs else None
 
             active_prompt = st.session_state.last_image_prompt
+            if body_ref_png_data:
+                active_prompt += (
+                    "\n\nBODY PROPORTION REFERENCE IMAGE: One of the attached reference images is a 2D body "
+                    "proportion diagram showing the EXACT desired body shape, shoulder-to-waist-to-hip ratio, "
+                    "muscle definition, and overall build. Match these proportions precisely in the generated image.")
             if model_ref_files:
                 active_prompt += build_model_ref_instruction(
                     len(model_ref_files), st.session_state.get("model_description", ""),
