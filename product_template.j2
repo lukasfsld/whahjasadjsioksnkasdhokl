@@ -1,43 +1,31 @@
 Ultra-realistic {{ prod_aspect_ratio }} product photograph. Professional commercial e-commerce quality.
-
 PRODUCT: {{ prod_name }}.
 {% if prod_description %}DETAILS: {{ prod_description }}.{% endif %}
 {% if prod_material %}MATERIAL: {{ prod_material }}. Show accurate material properties — reflections, texture, transparency, weight.{% endif %}
 {% if prod_size_info %}SCALE: {{ prod_size_info }}.{% endif %}
-
 {% if has_reference %}
 CRITICAL — REFERENCE IMAGE INSTRUCTIONS:
 {{ ref_count }} reference images are provided showing the EXACT product.
 Reference angles: {{ ref_angles }}.
-REPLICATE the product from the reference images with 100% accuracy. Match EVERY detail exactly: shape, proportions, color, texture, engravings, clasps, links, stones, and finish. Do NOT interpret, redesign, or improvise any element. The product in the final image must be IDENTICAL to the reference photos — as if it were the same physical object photographed in a new setting. Any deviation from the reference is a failure.
+REPLICATE the product from the reference images with 100% accuracy. Match EVERY detail exactly: shape, proportions, color, texture, engravings, clasps, links, stones, and finish. Do NOT interpret, redesign, or improvise. The product must be IDENTICAL to the reference photos.
 {% endif %}
-
 PRESENTATION: {{ prod_placement }}.
 {% if placement_detail %}{{ placement_detail }}{% endif %}
-
 {% if prod_arrangement != "Single Hero Product" %}
 ARRANGEMENT: {{ prod_arrangement }}.
 {% endif %}
-
 {% if prod_angle %}CAMERA ANGLE: {{ prod_angle }}.{% endif %}
 LENS: {{ prod_lens }}.
 {% if prod_dof %}DEPTH OF FIELD: {{ prod_dof }}.{% endif %}
-
 LIGHTING: {{ prod_lighting }}.
 {% if prod_lighting_detail %}{{ prod_lighting_detail }}{% endif %}
 {% if prod_reflections %}REFLECTIONS: {{ prod_reflections }}.{% endif %}
-
 BACKGROUND: {{ prod_bg }}.
 {% if prod_bg_detail %}{{ prod_bg_detail }}{% endif %}
-
 {% if prod_props %}STYLING PROPS: {{ prod_props }}.{% endif %}
 {% if prod_color_mood %}COLOR MOOD: {{ prod_color_mood }}.{% endif %}
-
 {% if prod_shadow %}SHADOW: {{ prod_shadow }}.{% endif %}
-
 FORMAT: {{ prod_aspect_ratio }}.
-
 QUALITY KEYWORDS: 8K resolution, hyper-realistic, commercial product photography, razor-sharp focus on product, professional retouching, magazine advertisement quality, accurate color reproduction, studio-grade rendering.
 {% if prod_negative %}
-
 NEGATIVE PROMPT: {{ prod_negative }}{% endif %}
