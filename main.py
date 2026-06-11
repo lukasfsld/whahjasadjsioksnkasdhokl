@@ -2407,7 +2407,6 @@ def generate_video_veo(prompt_text, gemini_api_key, first_frame_bytes=None,
     parameters = {
         "aspectRatio": "9:16" if "9:16" in str(aspect_ratio) else "16:9",
         "durationSeconds": int(duration),
-        "personGeneration": "allow_adult",
     }
     payload = {"instances": [instance], "parameters": parameters}
 
