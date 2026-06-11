@@ -2742,6 +2742,11 @@ if use_product_only:
                     st.info(f"📸 {len(prod_refs)} Referenzbild(er) werden mitgesendet...")
                 for i in range(num_prod_images):
                     with st.spinner(f"Gemini generiert Product-Bild {i+1}/{num_prod_images}..."):
+                        st.write("DEBUG Referenzbilder:", len(ref_imgs) if ref_imgs else 0)
+
+if ref_imgs:
+    for i, img in enumerate(ref_imgs):
+        st.write(f"Bild {i+1}: {img.name}")
                         img_bytes, mime_type = smart_generate_image(
                             st.session_state.last_product_prompt, gemini_key,
                             reference_images=prod_refs, aspect_ratio_str=prod_ar)
