@@ -536,6 +536,7 @@ with tab_model:
         }
 
         body_result = body_editor(params=sdf_params, height=560, key="sdf_body")
+        st.write("DEBUG body_result:", body_result)
 
         # Handle returned screenshots
         if body_result and isinstance(body_result, dict):
