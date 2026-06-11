@@ -536,7 +536,6 @@ with tab_model:
         }
 
         body_result = body_editor(params=sdf_params, height=560, key="sdf_body")
-        st.write("DEBUG body_result:", body_result)
 
         # Handle returned screenshots
         if body_result and isinstance(body_result, dict):
@@ -547,6 +546,17 @@ with tab_model:
             if side_b64 and "," in side_b64:
                 st.session_state["body_ref_side"] = _b64.b64decode(side_b64.split(",")[1])
             st.session_state["body_ref_png"] = st.session_state.get("body_ref_front")
+            if st.session_state.get("body_ref_front"):
+    st.image(
+        st.session_state["body_ref_front"],
+        caption="Front Screenshot"
+    )
+
+if st.session_state.get("body_ref_side"):
+    st.image(
+        st.session_state["body_ref_side"],
+        caption="Seiten Screenshot"
+    )
         else:
             if "body_ref_front" not in st.session_state:
                 st.session_state["body_ref_front"] = None
