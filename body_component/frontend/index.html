@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#0c0c16; overflow:hidden; }
+  #view { width:100%; cursor:grab; display:block; }
+  #caps { display:flex; gap:6px; padding:6px 10px; background:#111119; }
+  #caps img { flex:1; border-radius:6px; border:1px solid #FFD37A22; }
+  #hint { position:absolute; top:8px; left:12px; color:#8b8a93; font:11px/1 system-ui; letter-spacing:.12em; text-transform:uppercase; pointer-events:none; }
+</style>
+</head>
+<body>
+<div style="position:relative;">
+  <canvas id="view"></canvas>
+  <div id="hint">Ziehen = drehen · Scroll = zoom</div>
+</div>
+<div id="caps"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// === Streamlit component communication (raw postMessage API) ===
+function stInit() {
+  window.parent.postMessage({isStreamlitMessage:true, type:"streamlit:componentReady", apiVersion:1}, "*");
+}
+function stHeight(h) {
+  window.parent.postMessage({isStreamlitMessage:true, type:"streamlit:setFrameHeight", height:h}, "*");
+}
+function stValue(v) {
+  window.parent.postMessage({isStreamlitMessage:true, type:"streamlit:setComponentValue", value:v}, "*");
+}
+
+// === SDF primitives ===
+function smin(a,b,k){const h=Math.min(Math.max(.5+.5*(b-a)/k,0),1);return b*(1-h)+a*h-k*h*(1-h);}
+
+function sdEll(px,py,pz,e){
+  const dx=(px-e.cx)/e.rx, dy=(py-e.cy)/e.ry, dz=(pz-e.cz)/e.rz;
+  const k0=Math.sqrt(dx*dx+dy*dy+dz*dz);
+  const gx=dx/e.rx, gy=dy/e.ry, gz=dz/e.rz;
+  const k1=Math.sqrt(gx*gx+gy*gy+gz*gz);
+  return k1>1e-9?(k0*(k0-1))/k1:-Math.min(e.rx,e.ry,e.rz);
+}
+
+function sdCap(px,py,pz,c){
+  const abx=c.bx-c.ax, aby=c.by-c.ay, abz=c.bz-c.az;
+  const ab2=abx*abx+aby*aby+abz*abz;
+  let t=((px-c.ax)*abx+(py-c.ay)*aby+(pz-c.az)*abz)/ab2;
+  t=Math.min(Math.max(t,0),1);
+  const qx=px-(c.ax+t*abx), qy=py-(c.ay+t*aby), qz=pz-(c.az+t*abz);
+  return Math.sqrt(qx*qx+qy*qy+qz*qz)-(c.ra+(c.rb-c.ra)*t);
+}
+
+// === Body definition ===
+function makePrims(P){
+  const po=P.po, hu=P.hueften, ta=P.taille, sch=P.schultern;
+  const os=P.oberschenkel, wa=P.waden, arm=P.arme, bauch=P.bauch;
+  const br=P.brust, k=P.kopf;
+  const neckTop=1.425+0.085*P.hals;
+  const hx=0.085*Math.sqrt(hu);
+  const shx=0.150*sch+0.012;
+  const E=(cx,cy,cz,rx,ry,rz,blend=0.045)=>({t:0,cx,cy,cz,rx,ry,rz,blend});
+  const C=(ax,ay,az,bx,by,bz,ra,rb,blend=0.045)=>({t:1,ax,ay,az,bx,by,bz,ra,rb,blend});
+  const prims=[];
+  prims.push(E(0,0.86,0,0.150*hu,0.125,0.100));
+  prims.push(E(0,0.99,0.015+0.04*bauch,0.108,0.115,0.068+0.05*bauch));
+  prims.push(E(0,1.06,0,0.104*ta,0.10,0.080*ta));
+  prims.push(E(0,1.17,0,0.130,0.125,0.094));
+  prims.push(E(0,1.27,0.004,0.135,0.085,0.092));
+  prims.push(C(-0.145*sch,1.34,0,0.145*sch,1.34,0,0.052,0.052));
+  const gRx=0.072+0.026*(po-1), gRy=0.074+0.032*(po-1), gRz=0.064+0.052*(po-1);
+  const gZ=-(0.048+0.048*(po-1));
+  for(const s of[-1,1]) prims.push(E(s*0.057,0.835,gZ,gRx,gRy,gRz,0.06));
+  const bR=0.036+0.033*br;
+  for(const s of[-1,1]) prims.push(E(s*(0.055+0.012*br),1.205,0.048+0.028*br,bR,bR*0.94,bR*0.78,0.05));
+  prims.push(C(0,1.33,0,0,neckTop,0.006,0.051,0.046));
+  prims.push(E(0,neckTop+0.07*k,0.012,0.082*k,0.112*k,0.094*k,0.05));
+  for(const s of[-1,1]){
+    prims.push(C(s*hx,0.85,0,s*0.082,0.47,0,0.082*os,0.057,0.06));
+    prims.push(C(s*0.082,0.47,0,s*0.084,0.075,-0.012,0.054,0.034));
+    prims.push(E(s*0.083,0.33,-0.016,0.048*wa,0.095,0.058*wa));
+    prims.push(E(s*0.085,0.035,0.048,0.044,0.032,0.108));
+  }
+  for(const s of[-1,1]){
+    prims.push(E(s*(shx+0.006),1.325,0,0.052*arm,0.058,0.052*arm,0.055));
+    prims.push(C(s*(shx+0.004),1.32,0,s*(shx+0.018),1.07,0.005,0.046*arm,0.035*arm,0.05));
+    prims.push(C(s*(shx+0.018),1.07,0.005,s*(shx+0.024),0.80,0.015,0.035*arm,0.025*arm));
+    prims.push(E(s*(shx+0.025),0.745,0.02,0.030,0.052,0.022));
+  }
+  return prims;
+}
+
+function evalBody(px,py,pz,prims){
+  let d=1e9;
+  for(let i=0;i<prims.length;i++){
+    const p=prims[i];
+    const di=p.t===0?sdEll(px,py,pz,p):sdCap(px,py,pz,p);
+    d=smin(d,di,p.blend);
+  }
+  return d;
+}
+
+// === Surface Nets ===
+const X0=-0.38, Y0=-0.02, Z0=-0.34, STEP=0.019;
+const NX=41, NY=98, NZ=37;
+
+function buildMesh(P, material){
+  const prims=makePrims(P);
+  const field=new Float32Array(NX*NY*NZ);
+  const fi=(x,y,z)=>x+NX*(y+NY*z);
+  const mid=(NX-1)/2;
+  for(let z=0;z<NZ;z++){const pz=Z0+z*STEP;for(let y=0;y<NY;y++){const py=Y0+y*STEP;for(let x=mid;x<NX;x++){const v=evalBody(X0+x*STEP,py,pz,prims);field[fi(x,y,z)]=v;field[fi(2*mid-x,y,z)]=v;}}}
+  const ci=(x,y,z)=>x+(NX-1)*(y+(NY-1)*z);
+  const cellIdx=new Int32Array((NX-1)*(NY-1)*(NZ-1)).fill(-1);
+  const verts=[];
+  const corners=[[0,0,0],[1,0,0],[0,1,0],[1,1,0],[0,0,1],[1,0,1],[0,1,1],[1,1,1]];
+  const edges=[[0,1],[2,3],[4,5],[6,7],[0,2],[1,3],[4,6],[5,7],[0,4],[1,5],[2,6],[3,7]];
+  const s8=new Float32Array(8);
+  for(let z=0;z<NZ-1;z++)for(let y=0;y<NY-1;y++)for(let x=0;x<NX-1;x++){
+    let mask=0;for(let c=0;c<8;c++){s8[c]=field[fi(x+corners[c][0],y+corners[c][1],z+corners[c][2])];if(s8[c]<0)mask|=1<<c;}
+    if(mask===0||mask===255)continue;
+    let vx=0,vy=0,vz=0,cnt=0;
+    for(let e=0;e<12;e++){const a=edges[e][0],b=edges[e][1];if((s8[a]<0)!==(s8[b]<0)){const t=s8[a]/(s8[a]-s8[b]);vx+=corners[a][0]+t*(corners[b][0]-corners[a][0]);vy+=corners[a][1]+t*(corners[b][1]-corners[a][1]);vz+=corners[a][2]+t*(corners[b][2]-corners[a][2]);cnt++;}}
+    cellIdx[ci(x,y,z)]=verts.length/3;
+    verts.push(X0+(x+vx/cnt)*STEP,Y0+(y+vy/cnt)*STEP,Z0+(z+vz/cnt)*STEP);
+  }
+  const indices=[];
+  const quad=(a,b,c,d,flip)=>{if(a<0||b<0||c<0||d<0)return;if(flip)indices.push(a,b,c,a,c,d);else indices.push(a,c,b,a,d,c);};
+  for(let z=0;z<NZ;z++)for(let y=0;y<NY;y++)for(let x=0;x<NX;x++){
+    const p=field[fi(x,y,z)];
+    if(x<NX-1&&y>0&&y<NY-1&&z>0&&z<NZ-1){const q=field[fi(x+1,y,z)];if((p<0)!==(q<0))quad(cellIdx[ci(x,y-1,z-1)],cellIdx[ci(x,y,z-1)],cellIdx[ci(x,y,z)],cellIdx[ci(x,y-1,z)],p<0);}
+    if(y<NY-1&&x>0&&x<NX-1&&z>0&&z<NZ-1){const q=field[fi(x,y+1,z)];if((p<0)!==(q<0))quad(cellIdx[ci(x-1,y,z-1)],cellIdx[ci(x-1,y,z)],cellIdx[ci(x,y,z)],cellIdx[ci(x,y,z-1)],p<0);}
+    if(z<NZ-1&&x>0&&x<NX-1&&y>0&&y<NY-1){const q=field[fi(x,y,z+1)];if((p<0)!==(q<0))quad(cellIdx[ci(x-1,y-1,z)],cellIdx[ci(x,y-1,z)],cellIdx[ci(x,y,z)],cellIdx[ci(x-1,y,z)],p<0);}
+  }
+  const normals=new Float32Array(verts.length);
+  const eps=0.008;
+  for(let i=0;i<verts.length;i+=3){
+    const x=verts[i],y=verts[i+1],z=verts[i+2];
+    let nx=evalBody(x+eps,y,z,prims)-evalBody(x-eps,y,z,prims);
+    let ny=evalBody(x,y+eps,z,prims)-evalBody(x,y-eps,z,prims);
+    let nz=evalBody(x,y,z+eps,prims)-evalBody(x,y,z-eps,prims);
+    const l=Math.sqrt(nx*nx+ny*ny+nz*nz)||1;
+    normals[i]=nx/l;normals[i+1]=ny/l;normals[i+2]=nz/l;
+  }
+  const g=new THREE.BufferGeometry();
+  g.setAttribute("position",new THREE.Float32BufferAttribute(verts,3));
+  g.setAttribute("normal",new THREE.BufferAttribute(normals,3));
+  g.setIndex(indices);
+  const mesh=new THREE.Mesh(g,material);
+  const group=new THREE.Group();
+  group.add(mesh);
+  const s=P.groesse/170;
+  group.scale.set(s,s,s);
+  return group;
+}
+
+// === Three.js Scene ===
+const canvas = document.getElementById("view");
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true, preserveDrawingBuffer:true});
+renderer.setClearColor(0x0c0c16);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(36,1,0.1,50);
+camera.position.set(0,0.96,2.8);
+camera.lookAt(0,0.88,0);
+
+scene.add(new THREE.HemisphereLight(0xfff3e6,0x33343c,0.85));
+const keyL=new THREE.DirectionalLight(0xffffff,0.85);keyL.position.set(2.2,3.2,2.6);scene.add(keyL);
+const rimL=new THREE.DirectionalLight(0x9fb4ff,0.45);rimL.position.set(-2.5,1.6,-2.4);scene.add(rimL);
+
+const floor=new THREE.Mesh(new THREE.CircleGeometry(1.2,48),new THREE.MeshStandardMaterial({color:0x18181f,roughness:0.95}));
+floor.rotation.x=-Math.PI/2;scene.add(floor);
+
+const bodyMat=new THREE.MeshStandardMaterial({color:0xd6a88c,roughness:0.62,metalness:0.02,side:THREE.DoubleSide});
+
+let bodyGroup=null;
+let rotY=0.4, rotX=0, autoRot=true, idle=0;
+
+// Mouse/touch
+let drag=false, lx=0, ly=0;
+canvas.addEventListener("pointerdown",e=>{drag=true;autoRot=false;lx=e.clientX;ly=e.clientY;canvas.style.cursor="grabbing";});
+window.addEventListener("pointermove",e=>{if(!drag)return;rotY+=(e.clientX-lx)*0.01;rotX=Math.max(-0.5,Math.min(0.5,rotX+(e.clientY-ly)*0.005));lx=e.clientX;ly=e.clientY;idle=0;});
+window.addEventListener("pointerup",()=>{drag=false;canvas.style.cursor="grab";});
+canvas.addEventListener("wheel",e=>{e.preventDefault();camera.position.z=Math.max(1.6,Math.min(5,camera.position.z+e.deltaY*0.002));},{passive:false});
+canvas.style.touchAction="none";
+
+function resize(){
+  const w=canvas.parentElement.clientWidth, h=Math.min(460,window.innerHeight-80);
+  renderer.setSize(w,h);
+  camera.aspect=w/h;
+  camera.updateProjectionMatrix();
+}
+resize();
+new ResizeObserver(resize).observe(canvas.parentElement);
+
+// Animation
+function loop(){
+  requestAnimationFrame(loop);
+  idle+=0.016;
+  if(idle>3) autoRot=true;
+  if(autoRot) rotY+=0.004;
+  if(bodyGroup){bodyGroup.rotation.y=rotY;bodyGroup.rotation.x=rotX;}
+  renderer.render(scene,camera);
+}
+loop();
+
+// === Capture front + side screenshots ===
+function captureViews(){
+  if(!bodyGroup) return null;
+  const oldRY=bodyGroup.rotation.y, oldRX=bodyGroup.rotation.x;
+
+  // Front
+  bodyGroup.rotation.y=0; bodyGroup.rotation.x=0;
+  renderer.render(scene,camera);
+  const front=canvas.toDataURL("image/png");
+
+  // Side
+  bodyGroup.rotation.y=Math.PI/2; bodyGroup.rotation.x=0;
+  renderer.render(scene,camera);
+  const side=canvas.toDataURL("image/png");
+
+  // Restore
+  bodyGroup.rotation.y=oldRY; bodyGroup.rotation.x=oldRX;
+
+  // Show previews
+  const caps=document.getElementById("caps");
+  caps.innerHTML='<img src="'+front+'" title="Front"><img src="'+side+'" title="Seite">';
+
+  return {front, side};
+}
+
+// === Streamlit communication ===
+let currentParams = null;
+
+window.addEventListener("message", (event) => {
+  if(event.data.type !== "streamlit:render") return;
+  const args = event.data.args || {};
+  const P = args.params;
+  if(!P) return;
+
+  // Only rebuild if params changed
+  const pStr = JSON.stringify(P);
+  if(pStr === currentParams) return;
+  currentParams = pStr;
+
+  // Remove old body
+  if(bodyGroup){
+    scene.remove(bodyGroup);
+    bodyGroup.traverse(o=>{if(o.geometry)o.geometry.dispose();});
+  }
+
+  // Build new body
+  bodyGroup = buildMesh(P, bodyMat);
+  bodyGroup.rotation.y = rotY;
+  bodyGroup.rotation.x = rotX;
+  scene.add(bodyGroup);
+
+  // Capture after a short delay (let renderer finish)
+  setTimeout(()=>{
+    const views = captureViews();
+    if(views) stValue(views);
+    stHeight(canvas.height + 100);
+  }, 120);
+});
+
+stInit();
+stHeight(480);
+</script>
+</body>
+</html>
