@@ -546,17 +546,7 @@ with tab_model:
             if side_b64 and "," in side_b64:
                 st.session_state["body_ref_side"] = _b64.b64decode(side_b64.split(",")[1])
             st.session_state["body_ref_png"] = st.session_state.get("body_ref_front")
-            if st.session_state.get("body_ref_front"):
-    st.image(
-        st.session_state["body_ref_front"],
-        caption="Front Screenshot"
-    )
 
-if st.session_state.get("body_ref_side"):
-    st.image(
-        st.session_state["body_ref_side"],
-        caption="Seiten Screenshot"
-    )
         else:
             if "body_ref_front" not in st.session_state:
                 st.session_state["body_ref_front"] = None
