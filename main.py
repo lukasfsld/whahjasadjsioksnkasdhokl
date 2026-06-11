@@ -2406,7 +2406,7 @@ def generate_video_veo(prompt_text, gemini_api_key, first_frame_bytes=None,
     # allow_adult: EU-konform und Pflicht für Image-to-Video. Generiert keine Kinder.
     parameters = {
         "aspectRatio": "9:16" if "9:16" in str(aspect_ratio) else "16:9",
-        "durationSeconds": str(duration),
+        "durationSeconds": int(duration),
         "personGeneration": "allow_adult",
     }
     payload = {"instances": [instance], "parameters": parameters}
