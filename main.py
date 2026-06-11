@@ -2419,6 +2419,13 @@ def generate_video_veo(prompt_text, gemini_api_key, first_frame_bytes=None,
             resp = requests.post(url, json=payload, headers=headers, timeout=60)
             if resp.status_code in (404, 503):
                 continue
+            st.write("Model:", model)
+            st.write("Status:", resp.status_code)
+            try:
+                st.json(resp.json())
+            except:
+                st.write(resp.text)
+
             resp.raise_for_status()
             operation_name = resp.json().get("name")
             used_model = model
