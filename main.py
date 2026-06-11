@@ -509,467 +509,57 @@ with tab_model:
                 options=["Niedrige Taille", "Durchschnitt", "Hohe Taille"],
                 value="Durchschnitt", key="waist_height")
 
-        # --- 3D MANNEQUIN + 2D REFERENCE ---
-        body_preview_col, body_settings_col = st.columns([2, 1])
+        # --- SDF BODY EDITOR + GEMINI SCREENSHOTS ---
+        from body_component import body_editor
+        import base64 as _b64
 
-        with body_preview_col:
-            st.markdown("**👤 3D-Mannequin Vorschau** *(Maus: drehen · 2s idle: Auto-Rotation)*")
+        st.markdown("**👤 3D-Körper (SDF — ein durchgehendes Mesh, keine Nähte)**")
+        st.caption("Maus: drehen · Scroll: zoomen · 3s idle: Auto-Rotation · Zwei Screenshots (Front + Seite) werden automatisch an Gemini gesendet.")
 
-            import streamlit.components.v1 as components
+        # Map Streamlit 1-5 sliders to SDF parameter ranges
+        def _m(v, lo, hi):
+            return lo + (v - 1) * (hi - lo) / 4
 
-            def _s(v, lo, hi):
-                return lo + (v - 1) * (hi - lo) / 4
+        sdf_params = {
+            "groesse": min(max(body_height, 150), 195),
+            "kopf": 1.0,
+            "hals": _m(prop_neck, 0.5, 1.7),
+            "schultern": _m(prop_shoulders, 0.75, 1.3),
+            "brust": _m(prop_bust, 0.2, 2.0),
+            "taille": _m(prop_waist, 0.7, 1.45),
+            "bauch": 0.15 if muscle_def >= 3 else _m(5 - muscle_def, 0.0, 0.6),
+            "hueften": _m(prop_hips, 0.75, 1.45),
+            "po": _m(prop_butt, 0.6, 2.4),
+            "oberschenkel": _m(prop_thighs, 0.75, 1.45),
+            "waden": _m(prop_thighs, 0.80, 1.35),
+            "arme": _m(prop_arms, 0.7, 1.45),
+        }
 
-            r_sh = _s(prop_shoulders, 0.15, 0.27)
-            r_bu = _s(prop_bust, 0.12, 0.24)
-            r_wa = _s(prop_waist, 0.09, 0.21)
-            r_hp = _s(prop_hips, 0.14, 0.26)
-            r_th = _s(prop_thighs, 0.055, 0.13)
-            r_ar = _s(prop_arms, 0.025, 0.065)
-            n_len = _s(prop_neck, 0.04, 0.10)
-            l_len = _s(prop_legs_len, 0.48, 0.72)
-            mu_s = 1.0 + (muscle_def - 1) * 0.035
-            bust_p = _s(prop_bust, 0.0, 0.09)
-            butt_p = _s(prop_butt, 0.0, 0.06)
-            depth_base = 0.38
+        body_result = body_editor(params=sdf_params, height=560, key="sdf_body")
 
-            nt_y = 0.55 + n_len; nb_y = 0.55; sh_y = 0.52
-            bu_y = 0.38; wa_y = 0.24; hp_y = 0.10; cr_y = -0.02
-
-            threejs_html = f"""
-            <div id="mannequin" style="width:100%;height:460px;border-radius:14px;overflow:hidden;background:#0c0c16;cursor:grab;"></div>
-            <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-            <script>
-            (function() {{
-                const el = document.getElementById('mannequin');
-                const W = el.clientWidth || 340, H = 460;
-                const scene = new THREE.Scene();
-                scene.background = new THREE.Color(0x0c0c16);
-                const camera = new THREE.PerspectiveCamera(28, W/H, 0.1, 50);
-                camera.position.set(0, 0.28, 3.2);
-                camera.lookAt(0, 0.22, 0);
-                const renderer = new THREE.WebGLRenderer({{ antialias: true }});
-                renderer.setSize(W, H);
-                renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-                renderer.toneMapping = THREE.ACESFilmicToneMapping;
-                renderer.toneMappingExposure = 1.1;
-                el.appendChild(renderer.domElement);
-
-                scene.add(new THREE.HemisphereLight(0xfff0dd, 0x303045, 0.6));
-                const key = new THREE.DirectionalLight(0xfff5e6, 0.85);
-                key.position.set(2.5, 3, 3);
-                scene.add(key);
-                const fill = new THREE.DirectionalLight(0xc0d0ff, 0.25);
-                fill.position.set(-2, 1, 2);
-                scene.add(fill);
-                const rim = new THREE.DirectionalLight(0xFFD37A, 0.3);
-                rim.position.set(0, 1.5, -3);
-                scene.add(rim);
-
-                const mat = new THREE.MeshPhongMaterial({{
-                    color: 0xd4a54a, specular: 0x443322, shininess: 25,
-                    transparent: true, opacity: 0.50, side: THREE.DoubleSide
-                }});
-                const matSolid = new THREE.MeshPhongMaterial({{
-                    color: 0xd4a54a, specular: 0x443322, shininess: 40,
-                    transparent: true, opacity: 0.72
-                }});
-
-                const mu = {mu_s:.4f};
-
-                // Cross-section lofting with front/back asymmetry
-                function loftBody(secs, segs) {{
-                    const pos = [], idx = [];
-                    const ring = segs + 1;
-                    for (let s = 0; s < secs.length; s++) {{
-                        const sec = secs[s];
-                        for (let i = 0; i <= segs; i++) {{
-                            const a = (i / segs) * Math.PI * 2;
-                            const sinA = Math.sin(a), cosA = Math.cos(a);
-                            const fB = (sec.fp || 0) * Math.pow(Math.max(0, sinA), 1.4);
-                            const bB = (sec.bp || 0) * Math.pow(Math.max(0, -sinA), 1.3);
-                            const rz = sec.rz + fB + bB;
-                            pos.push(sec.rx * cosA, sec.y, rz * sinA);
-                        }}
-                    }}
-                    for (let s = 0; s < secs.length - 1; s++)
-                        for (let i = 0; i < segs; i++) {{
-                            const a = s * ring + i, b = (s+1) * ring + i;
-                            idx.push(a, b, a+1, a+1, b, b+1);
-                        }}
-                    const g = new THREE.BufferGeometry();
-                    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-                    g.setIndex(idx);
-                    g.computeVertexNormals();
-                    return g;
-                }}
-
-                // === TORSO (extends from neck down to upper-thigh for seamless leg blend) ===
-                const S={r_sh:.4f}*mu, B={r_bu:.4f}*mu, Wa={r_wa:.4f}*mu;
-                const Hp={r_hp:.4f}*mu, Th={r_th:.4f}*mu;
-                const db={depth_base:.3f};
-                const torsoSecs = [
-                    // Neck
-                    {{y:{nt_y:.3f}, rx:0.040, rz:0.033, fp:0, bp:0}},
-                    {{y:{nt_y-0.015:.3f}, rx:0.043, rz:0.036, fp:0, bp:0}},
-                    {{y:{nb_y+0.01:.3f}, rx:0.048, rz:0.040, fp:0, bp:0}},
-                    {{y:{nb_y:.3f}, rx:0.052, rz:0.042, fp:0, bp:0}},
-                    // Neck → Shoulder transition
-                    {{y:{sh_y+0.02:.3f}, rx:S*0.55, rz:S*db*0.7, fp:0, bp:0}},
-                    {{y:{sh_y:.3f}, rx:S, rz:S*db, fp:0, bp:0}},
-                    // Shoulder → Bust
-                    {{y:{sh_y-0.03:.3f}, rx:S*0.96, rz:S*db+{bust_p*0.2:.4f}, fp:{bust_p*0.3:.4f}, bp:0}},
-                    {{y:{bu_y+0.06:.3f}, rx:B*1.02, rz:S*db*0.95+{bust_p*0.4:.4f}, fp:{bust_p*0.6:.4f}, bp:0}},
-                    {{y:{bu_y+0.02:.3f}, rx:B*1.01, rz:S*db*0.92+{bust_p*0.5:.4f}, fp:{bust_p*0.85:.4f}, bp:0}},
-                    // Bust peak
-                    {{y:{bu_y:.3f}, rx:B, rz:S*db*0.90, fp:{bust_p:.4f}, bp:0}},
-                    // Under bust
-                    {{y:{bu_y-0.03:.3f}, rx:B*0.94, rz:S*db*0.85+{bust_p*0.2:.4f}, fp:{bust_p*0.3:.4f}, bp:0}},
-                    {{y:{bu_y-0.06:.3f}, rx:B*0.88, rz:S*db*0.80, fp:{bust_p*0.1:.4f}, bp:0}},
-                    // Waist approach
-                    {{y:{wa_y+0.04:.3f}, rx:Wa*1.08, rz:Wa*0.72, fp:0, bp:0}},
-                    {{y:{wa_y:.3f}, rx:Wa, rz:Wa*0.68, fp:0, bp:0}},
-                    {{y:{wa_y-0.02:.3f}, rx:Wa*1.04, rz:Wa*0.70, fp:0, bp:{butt_p*0.05:.4f}}},
-                    // Waist → Hip
-                    {{y:{wa_y-0.05:.3f}, rx:Wa+(Hp-Wa)*0.3, rz:Wa*0.72+(Hp*0.5-Wa*0.7)*0.3, fp:0, bp:{butt_p*0.15:.4f}}},
-                    {{y:{hp_y+0.06:.3f}, rx:Hp*0.90, rz:Hp*0.46, fp:0, bp:{butt_p*0.5:.4f}}},
-                    {{y:{hp_y+0.03:.3f}, rx:Hp*0.96, rz:Hp*0.48, fp:0, bp:{butt_p*0.8:.4f}}},
-                    // Hip widest
-                    {{y:{hp_y:.3f}, rx:Hp, rz:Hp*0.50, fp:0, bp:{butt_p:.4f}}},
-                    {{y:{hp_y-0.03:.3f}, rx:Hp*0.97, rz:Hp*0.49, fp:0, bp:{butt_p*0.8:.4f}}},
-                    // Hip → Thigh taper (smooth blend into legs)
-                    {{y:{hp_y-0.06:.3f}, rx:Hp*0.88, rz:Hp*0.46, fp:0, bp:{butt_p*0.4:.4f}}},
-                    {{y:{cr_y+0.04:.3f}, rx:Hp*0.72, rz:Hp*0.42, fp:0, bp:{butt_p*0.15:.4f}}},
-                    {{y:{cr_y+0.01:.3f}, rx:Th*1.8, rz:Th*1.4, fp:0, bp:0}},
-                    {{y:{cr_y:.3f}, rx:Th*1.5, rz:Th*1.2, fp:0, bp:0}},
-                    // Upper thigh (torso blends into leg volume)
-                    {{y:{cr_y-0.04:.3f}, rx:Th*1.3, rz:Th*1.1, fp:0, bp:0}},
-                    {{y:{cr_y-0.08:.3f}, rx:Th*1.15, rz:Th*1.0, fp:0, bp:0}},
-                ];
-
-                const body = new THREE.Group();
-                body.add(new THREE.Mesh(loftBody(torsoSecs, 48), mat));
-
-                // Head (slightly oval)
-                const head = new THREE.Mesh(new THREE.SphereGeometry(0.085, 28, 20), matSolid);
-                head.position.y = {nt_y:.3f} + 0.095;
-                head.scale.set(0.95, 1.06, 0.88);
-                body.add(head);
-
-                // === LEGS (lofted for smooth shape) ===
-                function makeLeg(side) {{
-                    const gap = Hp * 0.36;
-                    const tR = Th;
-                    const legSecs = [
-                        {{y:{cr_y-0.03:.3f}, rx:tR*1.20, rz:tR*1.05, fp:0, bp:0}},
-                        {{y:{cr_y-0.08:.3f}, rx:tR*1.10, rz:tR*1.00, fp:0, bp:0}},
-                        {{y:{cr_y-0.14:.3f}, rx:tR*1.02, rz:tR*0.95, fp:0, bp:0}},
-                        {{y:{cr_y-0.22:.3f}, rx:tR*0.90, rz:tR*0.85, fp:0, bp:0}},
-                    ];
-                    const kY = {cr_y:.3f} - {l_len*0.48:.4f};
-                    legSecs.push({{y:kY+0.04, rx:tR*0.78, rz:tR*0.72, fp:0, bp:0}});
-                    legSecs.push({{y:kY, rx:tR*0.70, rz:tR*0.68, fp:0, bp:0}});
-                    // Calf
-                    legSecs.push({{y:kY-0.04, rx:tR*0.72, rz:tR*0.65, fp:0, bp:0.008}});
-                    legSecs.push({{y:kY-0.10, rx:tR*0.62, rz:tR*0.55, fp:0, bp:0.005}});
-                    const aY = {cr_y:.3f} - {l_len*0.92:.4f};
-                    legSecs.push({{y:aY+0.03, rx:tR*0.48, rz:tR*0.42, fp:0, bp:0}});
-                    legSecs.push({{y:aY, rx:tR*0.38, rz:tR*0.35, fp:0, bp:0}});
-                    legSecs.push({{y:aY-0.02, rx:tR*0.40, rz:tR*0.28, fp:0, bp:0}});
-
-                    const legMesh = new THREE.Mesh(loftBody(legSecs, 24), mat);
-                    legMesh.position.x = side * gap;
-                    body.add(legMesh);
-                }}
-                makeLeg(1); makeLeg(-1);
-
-                // === ARMS (lofted, blending from shoulder) ===
-                function makeArm(side) {{
-                    const aR = {r_ar:.4f} * mu;
-                    const sx = side * (S + aR * 0.6);
-                    const armSecs = [
-                        {{y:{sh_y:.3f}, rx:aR*1.15, rz:aR*1.0, fp:0, bp:0}},
-                        {{y:{sh_y-0.05:.3f}, rx:aR*1.05, rz:aR*0.95, fp:0, bp:0}},
-                        {{y:{sh_y-0.12:.3f}, rx:aR*1.0, rz:aR*0.90, fp:0, bp:0}},
-                        {{y:{sh_y-0.20:.3f}, rx:aR*0.90, rz:aR*0.85, fp:0, bp:0}},
-                        {{y:{wa_y+0.06:.3f}, rx:aR*0.82, rz:aR*0.78, fp:0, bp:0}},
-                        {{y:{wa_y:.3f}, rx:aR*0.72, rz:aR*0.68, fp:0, bp:0}},
-                        {{y:{wa_y-0.08:.3f}, rx:aR*0.60, rz:aR*0.55, fp:0, bp:0}},
-                        {{y:{wa_y-0.14:.3f}, rx:aR*0.48, rz:aR*0.45, fp:0, bp:0}},
-                    ];
-                    const armMesh = new THREE.Mesh(loftBody(armSecs, 16), mat);
-                    armMesh.position.x = sx;
-                    armMesh.rotation.z = side * 0.08;
-                    body.add(armMesh);
-                }}
-                makeArm(1); makeArm(-1);
-
-                scene.add(body);
-
-                // Floor indicator
-                const floorY = {cr_y:.3f} - {l_len:.3f} - 0.08;
-                const floorGeo = new THREE.RingGeometry(0.15, 0.5, 48);
-                const floorMat = new THREE.MeshBasicMaterial({{color: 0xFFD37A, transparent: true, opacity: 0.04, side: THREE.DoubleSide}});
-                const floor = new THREE.Mesh(floorGeo, floorMat);
-                floor.rotation.x = -Math.PI / 2;
-                floor.position.y = floorY;
-                scene.add(floor);
-
-                // Mouse / touch rotation
-                let dragging = false, pX = 0, pY = 0, rY = 0, rX = 0, autoA = 0, idle = 0;
-                el.addEventListener('pointerdown', e => {{ dragging = true; pX = e.clientX; pY = e.clientY; el.style.cursor = 'grabbing'; }});
-                window.addEventListener('pointermove', e => {{
-                    if (!dragging) return;
-                    rY += (e.clientX - pX) * 0.008;
-                    rX += (e.clientY - pY) * 0.005;
-                    rX = Math.max(-0.7, Math.min(0.7, rX));
-                    pX = e.clientX; pY = e.clientY; idle = 0;
-                }});
-                window.addEventListener('pointerup', () => {{ dragging = false; el.style.cursor = 'grab'; }});
-
-                function animate() {{
-                    requestAnimationFrame(animate);
-                    idle += 0.016;
-                    if (idle > 2) autoA += 0.005;
-                    body.rotation.y = rY + autoA;
-                    body.rotation.x = rX;
-                    renderer.render(scene, camera);
-                }}
-                animate();
-            }})();
-            </script>
-            """
-            components.html(threejs_html, height=480)
-
-        with body_settings_col:
-            st.markdown("**📤 Body-Referenz für Gemini**")
-            send_body_ref = st.checkbox("Body-Skizze an Gemini mitsenden", value=False, key="send_body_ref",
-                                        help="Rendert Front- und Seitenansicht als Referenz-Bild für Gemini.")
-
-            if send_body_ref:
-                st.caption("✅ Front + Seite werden beim Generieren an Gemini mitgesendet.")
-
-                import matplotlib
-                matplotlib.use("Agg")
-                import matplotlib.pyplot as plt
-                from matplotlib.path import Path as MplPath
-                from matplotlib.patches import PathPatch
-                import numpy as np
-                from io import BytesIO
-
-                def render_body_reference_png(sh, nl, bu, wa, hp, bt, th, ar, mu_d, height_cm, weight_kg, btype):
-                    """Render front + side body silhouette as PNG using matplotlib bezier paths."""
-                    fig, (ax_f, ax_s) = plt.subplots(1, 2, figsize=(5, 5.5), dpi=140,
-                                                      gridspec_kw={'width_ratios': [1, 0.7]})
-                    fig.patch.set_facecolor('#0e0e18')
-                    gold = '#FFD37A'
-                    goldfill = '#FFD37A'
-
-                    def sv(v, lo, hi):
-                        return lo + (v - 1) * (hi - lo) / 4
-
-                    S = sv(sh, 0.34, 0.60); B = sv(bu, 0.26, 0.48)
-                    W = sv(wa, 0.20, 0.42); H = sv(hp, 0.30, 0.55)
-                    T = sv(th, 0.11, 0.25); A = sv(ar, 0.05, 0.13)
-                    NL = sv(nl, 0.06, 0.13); NW = 0.050
-                    bust_fwd = sv(bu, 0.0, 0.18)
-                    butt_bk = sv(bt, 0.0, 0.14)
-                    depth = 0.38
-
-                    # Y positions (0 = feet, ~2 = head)
-                    y_ft = 0.0; y_an = 0.06; y_kn = 0.38; y_cr = 0.58
-                    y_hp = 0.70; y_wa = 0.88; y_bu = 1.08; y_sh = 1.28
-                    y_nb = 1.34; y_nt = y_nb + NL; y_hd = y_nt + 0.14
-
-                    def draw_front(ax):
-                        ax.set_facecolor('#0e0e18')
-                        ax.set_xlim(-0.85, 0.85)
-                        ax.set_ylim(-0.08, y_hd + 0.15)
-                        ax.set_aspect('equal')
-                        ax.axis('off')
-                        ax.set_title('Front', color=gold, fontsize=9, fontfamily='sans-serif', pad=4)
-
-                        # Head
-                        head = plt.Circle((0, y_hd), 0.075, fc=goldfill+'15', ec=gold, lw=1.2)
-                        ax.add_patch(head)
-
-                        # Define right body outline (y ascending → shoulder to foot)
-                        # Many control points for smooth, natural curves
-                        ys = np.array([
-                            # Feet & ankle
-                            y_ft, y_ft+0.01, y_an-0.01, y_an, y_an+0.02,
-                            # Calf (gentle swell)
-                            y_an+0.06, y_an+0.10, y_an+0.14,
-                            # Knee (slight narrowing)
-                            y_kn-0.06, y_kn-0.03, y_kn, y_kn+0.03, y_kn+0.06,
-                            # Thigh (gradual widening)
-                            y_kn+0.10, y_kn+0.14, y_cr-0.10, y_cr-0.06, y_cr-0.03, y_cr,
-                            # Crotch → Hip (wide gradual transition)
-                            y_cr+0.02, y_cr+0.05, y_hp-0.08, y_hp-0.05, y_hp-0.02,
-                            y_hp, y_hp+0.02, y_hp+0.05,
-                            # Hip → Waist (smooth inward)
-                            y_hp+0.08, y_wa-0.08, y_wa-0.05, y_wa-0.02,
-                            y_wa, y_wa+0.02, y_wa+0.05,
-                            # Waist → Bust (gradual swell, NOT spiky)
-                            y_wa+0.08, y_bu-0.12, y_bu-0.08, y_bu-0.05, y_bu-0.02,
-                            y_bu, y_bu+0.02, y_bu+0.05, y_bu+0.08,
-                            # Bust → Shoulder
-                            y_bu+0.12, y_sh-0.08, y_sh-0.04, y_sh-0.02,
-                            y_sh, y_sh+0.02,
-                            # Neck
-                            y_nb-0.01, y_nb, y_nt,
-                        ])
-                        xs = np.array([
-                            # Feet & ankle
-                            0.050, 0.050, 0.042, 0.045, 0.048,
-                            # Calf
-                            T*0.50+0.02, T*0.55+0.02, T*0.52+0.02,
-                            # Knee
-                            T*0.56, T*0.52, T*0.50, T*0.54, T*0.60,
-                            # Thigh
-                            T*0.72, T*0.82, T*0.90, T*0.96, T*1.0, T*1.02,
-                            # Crotch → Hip (wide gradual swell)
-                            H*0.48, H*0.58, H*0.72, H*0.82, H*0.92,
-                            H, H*1.0, H*0.98,
-                            # Hip → Waist
-                            H*0.94, H*0.80, W+(H-W)*0.35, W*1.08,
-                            W, W*1.02, W*1.06,
-                            # Waist → Bust (GRADUAL round swell)
-                            W+(B-W)*0.15, W+(B-W)*0.30, W+(B-W)*0.50, W+(B-W)*0.72, B*0.95,
-                            B, B*0.98, B*0.94, B*0.88,
-                            # Bust → Shoulder
-                            B*0.82, S*0.75, S*0.88, S*0.95,
-                            S, S*0.60,
-                            # Neck
-                            NW+0.01, NW, NW,
-                        ])
-
-                        idx = np.argsort(ys)
-                        ys_s = ys[idx]; xs_s = xs[idx]
-                        y_fine = np.linspace(ys_s[0], ys_s[-1], 800)
-                        x_fine = np.interp(y_fine, ys_s, xs_s)
-
-                        # Very light smoothing (3-point average, preserves shape)
-                        x_sm = np.copy(x_fine)
-                        for _ in range(5):
-                            x_sm[1:-1] = (x_sm[:-2] + x_sm[1:-1] + x_sm[2:]) / 3
-
-                        ax.fill_betweenx(y_fine, -x_sm, x_sm, color=goldfill, alpha=0.12, lw=0)
-                        ax.plot(x_sm, y_fine, color=gold, lw=1.3, alpha=0.7)
-                        ax.plot(-x_sm, y_fine, color=gold, lw=1.3, alpha=0.7)
-
-                        # Inner legs (gap between legs)
-                        leg_gap = 0.025
-                        y_legs = np.linspace(y_ft, y_cr-0.02, 200)
-                        x_inner = np.interp(y_legs, [y_ft, y_an, y_kn, y_cr-0.02], [leg_gap, leg_gap, leg_gap, leg_gap*1.5])
-                        ax.plot(x_inner, y_legs, color=gold, lw=0.8, alpha=0.4)
-                        ax.plot(-x_inner, y_legs, color=gold, lw=0.8, alpha=0.4)
-
-                        # Arms
-                        for side in [1, -1]:
-                            arm_x = side * (S + A * 0.5 + 0.015)
-                            y_arm = np.linspace(y_wa - 0.08, y_sh, 100)
-                            w_arm = np.interp(y_arm, [y_wa-0.08, y_bu, y_sh-0.03, y_sh],
-                                              [A*0.45, A*0.55, A*0.70, A*0.85])
-                            ax.fill_betweenx(y_arm, arm_x - w_arm, arm_x + w_arm,
-                                             color=goldfill, alpha=0.08, lw=0)
-                            ax.plot(np.full_like(y_arm, arm_x) + w_arm, y_arm, color=gold, lw=0.9, alpha=0.5)
-                            ax.plot(np.full_like(y_arm, arm_x) - w_arm, y_arm, color=gold, lw=0.9, alpha=0.5)
-
-                        # Measurement markers
-                        for label, yy, hw in [("Schultern", y_sh, S), ("Brust", y_bu, B),
-                                               ("Taille", y_wa, W), ("Hüfte", y_hp, H)]:
-                            ax.plot([-hw, hw], [yy, yy], color=gold, lw=0.5, ls='--', alpha=0.30)
-                            ax.text(hw + 0.03, yy, label, color=gold, fontsize=5.5, alpha=0.45,
-                                    va='center', fontfamily='sans-serif')
-
-                    def draw_side(ax):
-                        ax.set_facecolor('#0e0e18')
-                        ax.set_xlim(-0.55, 0.55)
-                        ax.set_ylim(-0.08, y_hd + 0.15)
-                        ax.set_aspect('equal')
-                        ax.axis('off')
-                        ax.set_title('Seite', color=gold, fontsize=9, fontfamily='sans-serif', pad=4)
-
-                        head = plt.Circle((0.01, y_hd), 0.072, fc=goldfill+'15', ec=gold, lw=1.2)
-                        ax.add_patch(head)
-
-                        # Side profile: front edge and back edge
-                        # Y positions same as front
-                        ys_side = np.array([
-                            y_ft, y_an, y_kn-0.02, y_kn, y_kn+0.06,
-                            y_cr-0.06, y_cr, y_cr+0.03,
-                            y_hp-0.04, y_hp, y_hp+0.04,
-                            y_wa-0.04, y_wa, y_wa+0.04,
-                            y_bu-0.06, y_bu-0.03, y_bu, y_bu+0.03, y_bu+0.06,
-                            y_sh-0.03, y_sh, y_nb, y_nt,
-                        ])
-                        # Front edge (positive z = forward)
-                        x_front = np.array([
-                            0.04, 0.035, T*depth+0.01, T*depth, T*depth+0.005,
-                            T*depth*1.1, T*depth*1.0+0.01, H*depth*0.6,
-                            H*depth*0.65, H*depth*0.55, H*depth*0.50,
-                            W*depth*0.65, W*depth*0.55, W*depth*0.60,
-                            B*depth*0.6, B*depth*0.65+bust_fwd*0.4, B*depth*0.55+bust_fwd, B*depth*0.6+bust_fwd*0.6, B*depth*0.55+bust_fwd*0.2,
-                            S*depth*0.4, S*depth*0.38, NW+0.01, NW,
-                        ])
-                        # Back edge (negative z = backward)
-                        x_back = np.array([
-                            -0.03, -0.03, -T*depth*0.8, -T*depth*0.7, -T*depth*0.75,
-                            -T*depth*0.9, -T*depth*0.8, -H*depth*0.45,
-                            -H*depth*0.5-butt_bk*0.4, -H*depth*0.45-butt_bk, -H*depth*0.42-butt_bk*0.6,
-                            -W*depth*0.55, -W*depth*0.50, -W*depth*0.52,
-                            -B*depth*0.50, -B*depth*0.48, -B*depth*0.45, -B*depth*0.46, -B*depth*0.48,
-                            -S*depth*0.38, -S*depth*0.35, -NW-0.005, -NW,
-                        ])
-
-                        idx = np.argsort(ys_side)
-                        ys_s = ys_side[idx]; xf_s = x_front[idx]; xb_s = x_back[idx]
-
-                        y_fine = np.linspace(ys_s[0], ys_s[-1], 600)
-                        xf_fine = np.interp(y_fine, ys_s, xf_s)
-                        xb_fine = np.interp(y_fine, ys_s, xb_s)
-
-                        for arr in [xf_fine, xb_fine]:
-                            for _ in range(5):
-                                arr[1:-1] = (arr[:-2] + arr[1:-1] + arr[2:]) / 3
-
-                        ax.fill_betweenx(y_fine, xb_fine, xf_fine, color=goldfill, alpha=0.12, lw=0)
-                        ax.plot(xf_fine, y_fine, color=gold, lw=1.3, alpha=0.7)
-                        ax.plot(xb_fine, y_fine, color=gold, lw=1.3, alpha=0.7)
-
-                        # Arm (side view = thin)
-                        arm_x = S * depth * 0.38 + A * 0.3
-                        y_arm = np.linspace(y_wa - 0.06, y_sh, 80)
-                        ax.plot(np.full_like(y_arm, arm_x), y_arm, color=gold, lw=A*35, alpha=0.12, solid_capstyle='round')
-                        ax.plot(np.full_like(y_arm, arm_x), y_arm, color=gold, lw=0.8, alpha=0.45)
-
-                        for label, yy in [("Brust", y_bu), ("Taille", y_wa), ("Po", y_hp)]:
-                            ax.text(0.32, yy, label, color=gold, fontsize=5, alpha=0.40, va='center', fontfamily='sans-serif')
-
-                    draw_front(ax_f)
-                    draw_side(ax_s)
-
-                    fig.text(0.5, 0.02, f"{height_cm}cm · {weight_kg}kg · {btype.split('/')[0].strip()}",
-                             color=gold, fontsize=7, ha='center', alpha=0.5, fontfamily='sans-serif')
-
-                    plt.tight_layout(pad=0.5)
-                    buf = BytesIO()
-                    fig.savefig(buf, format='png', bbox_inches='tight', pad_inches=0.08, facecolor=fig.get_facecolor())
-                    plt.close(fig)
-                    buf.seek(0)
-                    return buf.getvalue()
-
-                body_ref_png = render_body_reference_png(
-                    prop_shoulders, prop_neck, prop_bust, prop_waist, prop_hips,
-                    prop_butt, prop_thighs, prop_arms, muscle_def, body_height, body_weight, body_type)
-                st.session_state["body_ref_png"] = body_ref_png
-                st.image(body_ref_png, caption="Front + Seite (wird an Gemini gesendet)", use_container_width=True)
-            else:
+        # Handle returned screenshots
+        if body_result and isinstance(body_result, dict):
+            front_b64 = body_result.get("front", "")
+            side_b64 = body_result.get("side", "")
+            if front_b64 and "," in front_b64:
+                st.session_state["body_ref_front"] = _b64.b64decode(front_b64.split(",")[1])
+            if side_b64 and "," in side_b64:
+                st.session_state["body_ref_side"] = _b64.b64decode(side_b64.split(",")[1])
+            st.session_state["body_ref_png"] = st.session_state.get("body_ref_front")
+        else:
+            if "body_ref_front" not in st.session_state:
+                st.session_state["body_ref_front"] = None
+                st.session_state["body_ref_side"] = None
                 st.session_state["body_ref_png"] = None
 
-            st.markdown("---")
-            st.caption("💡 3D: Maus ziehen zum Drehen. Slider links steuern die Form in Echtzeit.")
+        send_body_ref = st.checkbox("🖼️ Body-Screenshots an Gemini mitsenden", value=True, key="send_body_ref",
+                                    help="Sendet Front- und Seitenansicht des 3D-Modells als Referenzbilder an Gemini.")
+        if send_body_ref and st.session_state.get("body_ref_front"):
+            st.success("✅ Front + Seite werden beim nächsten Generieren an Gemini mitgesendet.")
+        elif send_body_ref:
+            st.caption("⏳ Screenshots werden beim nächsten Slider-Update erfasst...")
+        if not send_body_ref:
+            st.session_state["body_ref_png"] = None
 
         # --- BUILD BODY DESCRIPTION FOR PROMPT ---
         prop_labels = {
@@ -3012,26 +2602,33 @@ if st.session_state.last_image_prompt:
                 st.info(f"📸 {len(campaign_ref_files)} Produkt-Referenzbild(er) werden mitgesendet...")
                 all_ref_imgs.extend(campaign_ref_files)
 
-            # Body reference PNG (if enabled)
-            body_ref_png_data = st.session_state.get("body_ref_png")
-            if body_ref_png_data:
+            # Body reference screenshots (front + side from 3D SDF model)
+            body_front = st.session_state.get("body_ref_front")
+            body_side = st.session_state.get("body_ref_side")
+            has_body_ref = send_body_ref if 'send_body_ref' in dir() else False
+            if has_body_ref and (body_front or body_side):
                 class _PngRef:
                     def __init__(self, data, name="body_reference.png"):
                         self._data = data
                         self.name = name
                     def getvalue(self):
                         return self._data
-                all_ref_imgs.append(_PngRef(body_ref_png_data))
-                st.info("🏋️ Body-Proportions-Referenz wird mitgesendet...")
+                if body_front:
+                    all_ref_imgs.append(_PngRef(body_front, "body_front.png"))
+                if body_side:
+                    all_ref_imgs.append(_PngRef(body_side, "body_side.png"))
+                st.info(f"🏋️ {int(bool(body_front)) + int(bool(body_side))} Body-Screenshots (Front + Seite) werden mitgesendet...")
 
             ref_imgs = all_ref_imgs if all_ref_imgs else None
 
             active_prompt = st.session_state.last_image_prompt
-            if body_ref_png_data:
+            if has_body_ref and (body_front or body_side):
                 active_prompt += (
-                    "\n\nBODY PROPORTION REFERENCE IMAGE: One of the attached reference images is a 2D body "
-                    "proportion diagram showing the EXACT desired body shape, shoulder-to-waist-to-hip ratio, "
-                    "muscle definition, and overall build. Match these proportions precisely in the generated image.")
+                    "\n\nBODY PROPORTION REFERENCE IMAGES: Two of the attached reference images are 3D-rendered "
+                    "screenshots of the desired body shape — one from the FRONT, one from the SIDE. "
+                    "Match the body proportions, silhouette, bust-to-waist-to-hip ratio, shoulder width, "
+                    "leg length, arm thickness, and overall build PRECISELY as shown in these reference views. "
+                    "The 3D model shows the EXACT body shape the generated person should have.")
             if model_ref_files:
                 active_prompt += build_model_ref_instruction(
                     len(model_ref_files), st.session_state.get("model_description", ""),
